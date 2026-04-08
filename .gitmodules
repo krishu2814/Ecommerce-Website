@@ -1,0 +1,15 @@
+[submodule "services/Product-Service"]
+	path = services/Product-Service
+	url = https://github.com/krishu2814/Product-Service
+[submodule "services/Cart-Service"]
+	path = services/Cart-Service
+	url = https://github.com/krishu2814/Cart-Service
+[submodule "services/Auth-Service"]
+	path = services/Auth-Service
+	url = https://github.com/krishu2814/Auth-Service
+[submodule "services/Order-Service"]
+	path = services/Order-Service
+	url = https://github.com/krishu2814/Order-Service
+[submodule "services/Payment-Service"]
+	path = services/Payment-Service
+	url = https://github.com/krishu2814/Payment_Service_EcommerceWebsite
