@@ -13,7 +13,10 @@ Each service is fully decoupled with its own database and business logic, enabli
 - High availability
 - Clean architecture
 
----
+## ⚙️ System Design
+<img width="1415" height="842" alt="SystemDesignEcommerce" src="https://github.com/user-attachments/assets/58ea588e-2505-4b59-8afd-3194edb8d29b" />
+
+
 
 ## 🏗️ Architecture Overview
 
@@ -29,7 +32,8 @@ The system consists of five core microservices:
 
 ---
 
-## 📦 Service Catalog
+## 📦 Service Catalog 
+- CLICK on the link below to visit each service and and their detailed explanation.
 
 | Service | Repository | Status |
 |--------|------------|--------|
@@ -37,7 +41,7 @@ The system consists of five core microservices:
 | Product Service | https://github.com/krishu2814/Product-Service | ✅ Active |
 | Cart Service | https://github.com/krishu2814/Cart-Service | ✅ Active |
 | Order Service | https://github.com/krishu2814/Order-Service | ✅ Active |
-| Payment Service | https://github.com/krishu2814/Payment_Service_EcommerceWebsite | 🚧 In Progress |
+| Payment Service | https://github.com/krishu2814/Payment_Service_EcommerceWebsite | ✅ Active |
 
 ---
 
