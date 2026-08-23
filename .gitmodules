@@ -13,3 +13,9 @@
 [submodule "services/Payment-Service"]
 	path = services/Payment-Service
 	url = https://github.com/krishu2814/Payment_Service_EcommerceWebsite
+[submodule "services/ApiGateway-Service"]
+	path = services/ApiGateway-Service
+	url = https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git
+[submodule "services/Inventory-Service"]
+	path = services/Inventory-Service
+	url = https://github.com/krishu2814/Inventory-Service.git

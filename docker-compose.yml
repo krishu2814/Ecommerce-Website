@@ -1,0 +1,251 @@
+services:
+  # ==========================================
+  # RABBITMQ
+  # ==========================================
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: ecommerce-rabbitmq
+    restart: unless-stopped
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # PRODUCT SERVICE
+  # ==========================================
+
+  product-service:
+    build:
+      context: ./services/Product-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-product-service
+    restart: unless-stopped
+
+    ports:
+      - "5009:5009"
+
+    env_file:
+      - ./services/Product-Service/.env
+
+    environment:
+      PORT: 5009
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # AUTH SERVICE
+  # ==========================================
+
+  auth-service:
+    build:
+      context: ./services/Auth-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-auth-service
+    restart: unless-stopped
+
+    ports:
+      - "5011:5011"
+
+    env_file:
+      - ./services/Auth-Service/.env
+
+    environment:
+      PORT: 5011
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # CART SERVICE
+  # ==========================================
+
+  cart-service:
+    build:
+      context: ./services/Cart-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-cart-service
+    restart: unless-stopped
+
+    ports:
+      - "5010:5010"
+
+    env_file:
+      - ./services/Cart-Service/.env
+
+    environment:
+      PORT: 5010
+      PRODUCT_SERVICE_URL: http://product-service:5009
+      RABBITMQ_URL: amqp://rabbitmq:5672
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # ORDER SERVICE
+  # ==========================================
+
+  order-service:
+    build:
+      context: ./services/Order-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-order-service
+    restart: unless-stopped
+
+    ports:
+      - "5012:5012"
+
+    env_file:
+      - ./services/Order-Service/.env
+
+    environment:
+      PORT: 5012
+      CART_SERVICE_URL: http://cart-service:5010
+      PRODUCT_SERVICE_URL: http://product-service:5009
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      EXCHANGE_NAME: ecommerce_events
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # PAYMENT SERVICE
+  # ==========================================
+
+  payment-service:
+    build:
+      context: ./services/Payment-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-payment-service
+    restart: unless-stopped
+
+    ports:
+      - "5013:5013"
+
+    env_file:
+      - ./services/Payment-Service/.env
+
+    environment:
+      PORT: 5013
+      CART_SERVICE_URL: http://cart-service:5010
+      ORDER_SERVICE_URL: http://order-service:5012
+      RABBITMQ_URL: amqp://rabbitmq:5672
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # INVENTORY SERVICE
+  # ==========================================
+
+  inventory-service:
+    build:
+      context: ./services/Inventory-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-inventory-service
+    restart: unless-stopped
+
+    ports:
+      - "5016:5016"
+
+    env_file:
+      - ./services/Inventory-Service/.env
+
+    environment:
+      PORT: 5016
+      ORDER_SERVICE_URL: http://order-service:5012
+      PRODUCT_SERVICE_URL: http://product-service:5009
+      RABBITMQ_URL: amqp://rabbitmq:5672
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # API GATEWAY
+  # ==========================================
+
+  api-gateway:
+    build:
+      context: ./services/ApiGateway-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-api-gateway
+    restart: unless-stopped
+
+    ports:
+      - "5014:5014"
+
+    env_file:
+      - ./services/ApiGateway-Service/.env
+
+    environment:
+      PORT: 5014
+
+      AUTH_SERVICE_URL: http://auth-service:5011
+      PRODUCT_SERVICE_URL: http://product-service:5009
+      CART_SERVICE_URL: http://cart-service:5010
+      ORDER_SERVICE_URL: http://order-service:5012
+      PAYMENT_SERVICE_URL: http://payment-service:5013
+      INVENTORY_SERVICE_URL: http://inventory-service:5016
+
+    depends_on:
+      - product-service
+      - auth-service
+      - cart-service
+      - order-service
+      - payment-service
+      - inventory-service
+
+    networks:
+      - ecommerce-network
+
+# ==========================================
+# VOLUMES
+# ==========================================
+
+volumes:
+  rabbitmq_data:
+
+# ==========================================
+# NETWORK
+# ==========================================
+
+networks:
+  ecommerce-network:
+    driver: bridge
