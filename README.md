@@ -240,7 +240,23 @@ Inventory Consumer       Order Consumer          Order Consumer           Cart &
 }
 ```
 
-#### 5. `ORDER_CONFIRMED`
+#### 5. `PAYMENT_FAILED`
+* **Routing Key**: `PAYMENT_FAILED`
+* **Publisher**: Payment Service
+* **Subscribers**: Order Service (`order_payment_failed_queue`), Inventory Service (`inventory_payment_failed_queue`)
+
+```json
+{
+  "event": "PAYMENT_FAILED",
+  "orderId": "65e8a1f2b4c6d8e012345678",
+  "userId": "65e89fc1b4c6d8e012345670",
+  "amount": 299.98,
+  "reason": "Payment transaction was declined or failed",
+  "timestamp": "2026-08-24T08:00:05.000Z"
+}
+```
+
+#### 6. `ORDER_CONFIRMED`
 * **Routing Key**: `ORDER_CONFIRMED`
 * **Publisher**: Order Service
 * **Subscribers**: Inventory Service (`inventory_order_confirmed_queue`), Cart Service (`cart_order_confirmed_queue`)
@@ -252,6 +268,23 @@ Inventory Consumer       Order Consumer          Order Consumer           Cart &
   "userId": "65e89fc1b4c6d8e012345670",
   "transactionId": "TXN_1724486400000",
   "timestamp": "2026-08-24T08:00:06.000Z"
+}
+```
+
+#### 7. `RESERVATION_EXPIRED`
+* **Routing Key**: `RESERVATION_EXPIRED`
+* **Publisher**: Inventory Service (Background Expiry Job)
+* **Subscriber**: Order Service (`order_reservation_expired_queue`)
+
+```json
+{
+  "event": "RESERVATION_EXPIRED",
+  "orderId": "65e8a1f2b4c6d8e012345678",
+  "userId": "65e89fc1b4c6d8e012345670",
+  "productId": "65e89d1ab4c6d8e012345601",
+  "quantity": 2,
+  "reason": "Reservation hold expired after 15 minutes without payment",
+  "timestamp": "2026-08-24T08:15:00.000Z"
 }
 ```
 
@@ -738,7 +771,8 @@ docker compose down
 
 ## 🔮 Production Roadmap & Distributed Patterns
 
-- [ ] **Full Saga Orchestrator / Choreography**: Extend payment failure workflows to automatically emit `PAYMENT_FAILED`, trigger `RELEASE_INVENTORY`, and transition orders to `CANCELLED`.
+- [x] **Choreographed Saga Failure Handling & Automated Rollbacks**: `PAYMENT_FAILED` triggers automatic `releaseReservationsByOrderId()` in Inventory and transitions Order to `CANCELLED`.
+- [x] **Reservation TTL Expiry & Compensation**: Background worker sweeps unfulfilled reservations (>15m), releases physical inventory, and emits `RESERVATION_EXPIRED` to cancel lingering orders.
 - [ ] **Dead Letter Queues (DLQ) & Retry Policy**: Configure RabbitMQ DLX exchanges with exponential backoff retries for unprocessable messages.
 - [ ] **Redis Distributed Caching & Redlock**: Cache product catalog queries and implement Redis distributed locking for extreme-concurrency flash sales.
 - [ ] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
