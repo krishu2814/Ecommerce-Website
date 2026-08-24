@@ -837,6 +837,57 @@ Implemented via an atomic Redis pipeline (`INCR` + `EXPIRE` / `TTL`) to protect 
 
 ---
 
+## 🔎 Distributed Tracing & Correlation IDs (`x-correlation-id`)
+
+Every user action across synchronous HTTP REST endpoints and asynchronous RabbitMQ event pipelines is stitched together using a single **Correlation ID**:
+
+```text
+[Client / Frontend]
+        │
+        │ HTTP Request (Optional: `X-Correlation-ID: custom_trace` or auto-generated `corr_<uuid>`)
+        ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    API GATEWAY (:5014)                      │
+│  - Middleware generates or captures `x-correlation-id`      │
+│  - Logs: `[corr_abc123] Incoming POST /api/v1/orders`       │
+│  - Injects `x-correlation-id` into Axios downstream headers  │
+│  - Returns `X-Correlation-ID: corr_abc123` to client        │
+└───────────────┬─────────────────────────────┬───────────────┘
+                │                             │
+                │ HTTP (`x-correlation-id`)   │ HTTP (`x-correlation-id`)
+                ▼                             ▼
+┌───────────────────────────────┐ ┌───────────────────────────┐
+│     PRODUCT SERVICE (:5009)   │ │    ORDER SERVICE (:5012)  │
+│ - Sets `req.correlationId`    │ │ - Sets `req.correlationId`│
+│ - Logs: `[corr_abc123] ...`   │ │ - Emits `ORDER_CREATED`   │
+└───────────────────────────────┘ └─────────────┬─────────────┘
+                                                │
+                                                │ AMQP publish with:
+                                                │  • `properties.correlationId`
+                                                │  • `headers['x-correlation-id']`
+                                                │  • `payload.correlationId`
+                                                ▼
+                                  ┌───────────────────────────┐
+                                  │      RABBITMQ BROKER      │
+                                  │ `ecommerce_events` Topic  │
+                                  └─────────────┬─────────────┘
+                                                │
+                                                │ AMQP delivery with headers
+                                                ▼
+                                  ┌───────────────────────────┐
+                                  │  INVENTORY SERVICE (:5016)│
+                                  │ - Extracts `correlationId`│
+                                  │ - Logs: `[corr_abc123] ...│
+                                  │ - Preserves ID in retries │
+                                  │   and DLQ headers         │
+                                  └───────────────────────────┘
+```
+
+- **Instant 1-Second RCA**: Query any entire transaction across the 7 containers with `docker compose logs | grep "<correlation-id>"`.
+- **AMQP & DLQ Trace Preservation**: Correlation IDs survive multi-stage retries and Dead Letter Queue parking for full audit tracking.
+
+---
+
 ## 🔮 Production Roadmap & Distributed Patterns
 
 - [x] **Choreographed Saga Failure Handling & Automated Rollbacks**: `PAYMENT_FAILED` triggers automatic `releaseReservationsByOrderId()` in Inventory and transitions Order to `CANCELLED`.
@@ -844,7 +895,7 @@ Implemented via an atomic Redis pipeline (`INCR` + `EXPIRE` / `TTL`) to protect 
 - [x] **Dead Letter Queues (DLQ) & Exponential Backoff Retries**: Dedicated DLX topic exchange (`ecommerce_dlx`), isolated `${queueName}_dlq` parking, and multi-stage TTL delay queues (1s ➔ 2s ➔ 4s) with audit metadata headers.
 - [x] **Redis Distributed Caching & Cache Invalidation**: Sub-millisecond catalog reads via Cache-Aside pattern, non-blocking `SCAN` invalidation on mutations, and `X-Cache` observability.
 - [x] **API Rate Limiting**: Distributed sliding-window rate limiting at API Gateway (15 req/min auth, 30 req/min orders, 100 req/min general) using Redis.
-- [ ] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
+- [x] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
 - [ ] **Observability**: Integrate Prometheus, Grafana, OpenTelemetry, and Jaeger for centralized metrics and latency telemetry.
 - [ ] **Kubernetes (K8s) Deployment**: Package services into Helm charts with Horizontal Pod Autoscaling (HPA) and Ingress routing.
 
