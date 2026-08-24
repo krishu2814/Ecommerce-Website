@@ -290,6 +290,51 @@ Inventory Consumer       Order Consumer          Order Consumer           Cart &
 
 ---
 
+## 📬 Dead Letter Queues (DLQ) & Exponential Backoff Retry Policy
+
+To guarantee message reliability, prevent silent data loss, and eliminate poison-pill infinite loops, all consumers across the ecosystem are protected by **Dead Letter Queues** and **TTL-based Exponential Backoff Retries**:
+
+```text
+                                [ecommerce_events] (Topic Exchange)
+                                         │
+                                         ▼ (e.g. ORDER_CREATED)
+                                [inventory_order_queue]
+                                         │
+                      ┌──────────────────┴──────────────────┐
+                      │                                     │
+               (Success / Ack)                       (Consumer Error)
+                      │                                     │
+                      ▼                                     ▼
+                 [Processed]                     [Check x-retry-count]
+                                                            │
+                                     ┌──────────────────────┴──────────────────────┐
+                                     │ (< MAX_RETRIES, e.g. 1/3)                   │ (>= MAX_RETRIES)
+                                     ▼                                             ▼
+                           [Calculate Backoff Delay]                     [Publish to ecommerce_dlx]
+                           (Delay: 2^(retry-1) * 1000ms)                  (Routing: <queue>.dead)
+                                     │                                             │
+                                     ▼                                             ▼
+                        [<queue>_retry_<delay>ms]                        [<queue>_dlq]
+                          (TTL = delayMs, DLX -> events)                 (Parked with audit metadata)
+                                     │
+                              (TTL Expires)
+                                     │
+                                     └──────────► [Re-routed to Main Queue]
+```
+
+### Key DLQ & Retry Capabilities:
+1. **Dedicated DLX Topic Exchange (`ecommerce_dlx`)**: Captures all unprocessable messages and routes them to isolated `<queueName>_dlq` queues.
+2. **Exponential Backoff Delays**: Retries transient consumer errors with bounded exponential backoff ($1\text{s} \to 2\text{s} \to 4\text{s}$) using RabbitMQ `x-message-ttl` and dead-lettering.
+3. **Queue Unblocking**: Failing messages are scheduled in transient delay queues and acknowledged on the primary queue, ensuring healthy messages behind them are never blocked.
+4. **Failure Audit Metadata**: Failed messages routed to DLQ are stamped with headers:
+   - `x-retry-count`: Total attempts (e.g. `3`).
+   - `x-original-queue`: Originating consumer queue name.
+   - `x-error-message`: Captured exception string.
+   - `x-error-stack`: Full trace for post-mortem debugging.
+   - `x-dead-lettered-at`: ISO timestamp when message was parked in DLQ.
+
+---
+
 ## 🔒 Two-Phase Inventory Reservation & Concurrency Control
 
 To prevent overselling in high-concurrency environments (such as flash sales), stock is managed via a **Two-Phase Reservation Pattern**:
@@ -773,7 +818,7 @@ docker compose down
 
 - [x] **Choreographed Saga Failure Handling & Automated Rollbacks**: `PAYMENT_FAILED` triggers automatic `releaseReservationsByOrderId()` in Inventory and transitions Order to `CANCELLED`.
 - [x] **Reservation TTL Expiry & Compensation**: Background worker sweeps unfulfilled reservations (>15m), releases physical inventory, and emits `RESERVATION_EXPIRED` to cancel lingering orders.
-- [ ] **Dead Letter Queues (DLQ) & Retry Policy**: Configure RabbitMQ DLX exchanges with exponential backoff retries for unprocessable messages.
+- [x] **Dead Letter Queues (DLQ) & Exponential Backoff Retries**: Dedicated DLX topic exchange (`ecommerce_dlx`), isolated `${queueName}_dlq` parking, and multi-stage TTL delay queues (1s ➔ 2s ➔ 4s) with audit metadata headers.
 - [ ] **Redis Distributed Caching & Redlock**: Cache product catalog queries and implement Redis distributed locking for extreme-concurrency flash sales.
 - [ ] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
 - [ ] **API Rate Limiting**: Implement token-bucket rate limiting at API Gateway (e.g. 100 req/min per IP/user) using Redis.
