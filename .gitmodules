@@ -19,3 +19,6 @@
 [submodule "services/Inventory-Service"]
 	path = services/Inventory-Service
 	url = https://github.com/krishu2814/Inventory-Service.git
+[submodule "services/Notification-Service"]
+	path = services/Notification-Service
+	url = https://github.com/krishu2814/Notification-Service.git

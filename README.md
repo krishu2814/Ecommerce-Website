@@ -113,7 +113,7 @@ All services are structured as modular components and linked via Git submodules:
 | **Order Service** | [Order-Service](https://github.com/krishu2814/Order-Service) | `5012` | HTTP + AMQP | MongoDB (`ecommerce_order`) | Cart Service, Product Service, RabbitMQ | ✅ Active |
 | **Inventory Service** | [Inventory-Service](https://github.com/krishu2814/Inventory-Service.git) | `5016` | HTTP + AMQP | MongoDB (`ecommerce_inventory`) | Product Service, RabbitMQ | ✅ Active |
 | **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Order Service, RabbitMQ | ✅ Active |
-| **Notification Service** | `services/Notification-Service` | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, RabbitMQ | ✅ Active |
+| **Notification Service** | [Notification-Service](https://github.com/krishu2814/Notification-Service.git) | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, RabbitMQ | ✅ Active |
 
 ---
 
