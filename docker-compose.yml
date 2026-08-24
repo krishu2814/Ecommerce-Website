@@ -230,6 +230,37 @@ services:
       - ecommerce-network
 
   # ==========================================
+  # NOTIFICATION SERVICE
+  # ==========================================
+
+  notification-service:
+    build:
+      context: ./services/Notification-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-notification-service
+    restart: unless-stopped
+
+    ports:
+      - "5015:5015"
+
+    env_file:
+      - ./services/Notification-Service/.env
+
+    environment:
+      PORT: 5015
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      EXCHANGE_NAME: ecommerce_events
+      DLX_EXCHANGE_NAME: ecommerce_dlx
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
   # API GATEWAY
   # ==========================================
 
@@ -256,6 +287,7 @@ services:
       ORDER_SERVICE_URL: http://order-service:5012
       PAYMENT_SERVICE_URL: http://payment-service:5013
       INVENTORY_SERVICE_URL: http://inventory-service:5016
+      NOTIFICATION_SERVICE_URL: http://notification-service:5015
       REDIS_URL: redis://redis:6379
 
     depends_on:
@@ -265,6 +297,7 @@ services:
       - order-service
       - payment-service
       - inventory-service
+      - notification-service
       - redis
 
     networks:

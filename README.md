@@ -106,13 +106,14 @@ All services are structured as modular components and linked via Git submodules:
 
 | Service | Repository Link | Port | Protocol | Primary Database | Key Dependencies | Status |
 | :--- | :--- | :---: | :---: | :--- | :--- | :---: |
-| **API Gateway** | [ApiGateway-Service](https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git) | `5014` | HTTP | — | Auth, Product, Cart, Order, Payment, Inventory | ✅ Active |
+| **API Gateway** | [ApiGateway-Service](https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git) | `5014` | HTTP | — | Auth, Product, Cart, Order, Payment, Inventory, Notification | ✅ Active |
 | **Auth Service** | [Auth-Service](https://github.com/krishu2814/Auth-Service) | `5011` | HTTP | MongoDB (`ecommerce_auth`) | Bcrypt, JWT | ✅ Active |
 | **Product Service** | [Product-Service](https://github.com/krishu2814/Product-Service) | `5009` | HTTP | MongoDB (`ecommerce_product`) | Text Search Indexes | ✅ Active |
 | **Cart Service** | [Cart-Service](https://github.com/krishu2814/Cart-Service) | `5010` | HTTP + AMQP | MongoDB (`ecommerce_cart`) | Product Service, RabbitMQ | ✅ Active |
 | **Order Service** | [Order-Service](https://github.com/krishu2814/Order-Service) | `5012` | HTTP + AMQP | MongoDB (`ecommerce_order`) | Cart Service, Product Service, RabbitMQ | ✅ Active |
 | **Inventory Service** | [Inventory-Service](https://github.com/krishu2814/Inventory-Service.git) | `5016` | HTTP + AMQP | MongoDB (`ecommerce_inventory`) | Product Service, RabbitMQ | ✅ Active |
 | **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Order Service, RabbitMQ | ✅ Active |
+| **Notification Service** | `services/Notification-Service` | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, RabbitMQ | ✅ Active |
 
 ---
 
@@ -883,8 +884,45 @@ Every user action across synchronous HTTP REST endpoints and asynchronous Rabbit
                                   └───────────────────────────┘
 ```
 
-- **Instant 1-Second RCA**: Query any entire transaction across the 7 containers with `docker compose logs | grep "<correlation-id>"`.
+- **Instant 1-Second RCA**: Query any entire transaction across all containers with `docker compose logs | grep "<correlation-id>"`.
 - **AMQP & DLQ Trace Preservation**: Correlation IDs survive multi-stage retries and Dead Letter Queue parking for full audit tracking.
+
+---
+
+## 🔔 Notification Microservice (8th Service)
+
+The **Notification Service** (`services/Notification-Service`, Port `5015`) operates asynchronously as an event-driven notification hub:
+
+```text
+                                  ┌───────────────────────────┐
+                                  │      RABBITMQ BROKER      │
+                                  │  `ecommerce_events` Topic │
+                                  └─────────────┬─────────────┘
+                                                │
+                 ┌──────────────────────────────┼──────────────────────────────┐
+                 │ `ORDER_CONFIRMED`            │ `ORDER_CANCELLED`            │ `PAYMENT_FAILED`
+                 ▼                              ▼                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              NOTIFICATION SERVICE (Port 5015)                               │
+│                                                                                             │
+│  ► Resilient Event Consumers (`notification_order_confirmed_queue`, etc.)                   │
+│    • Stamped with `x-correlation-id` tracing headers                                        │
+│    • 3-stage exponential backoff delay queues (1s ➔ 2s ➔ 4s)                                │
+│    • Dedicated Dead Letter Queue (`*_dlq`) via `ecommerce_dlx`                              │
+│                                                                                             │
+│  ► Template Compilation & Transporter                                                       │
+│    • Dispatches responsive HTML transactional emails with item breakdowns & address info    │
+│    • Dispatches instant decline/cancellation alerts with refund details                     │
+│                                                                                             │
+│  ► Audit & User Notification Inbox                                                          │
+│    • Persists delivery status (`SENT`, `FAILED`) in MongoDB (`ecommerce_notification`)     │
+│    • REST endpoint: `GET /api/v1/notifications/my-notifications` (via Gateway :5014)        │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Order Confirmation Email**: Triggered by `ORDER_CONFIRMED`, dispatches styled HTML order receipt with order items, pricing, and shipping address.
+- **Order Cancellation & Payment Decline Alerts**: Triggered by `ORDER_CANCELLED` and `PAYMENT_FAILED`, alerts customer immediately with failure rationale and retry guidance.
+- **Notification Inbox API**: Authenticated users can retrieve their personal notification stream via `GET /api/v1/notifications/my-notifications`.
 
 ---
 
@@ -896,6 +934,7 @@ Every user action across synchronous HTTP REST endpoints and asynchronous Rabbit
 - [x] **Redis Distributed Caching & Cache Invalidation**: Sub-millisecond catalog reads via Cache-Aside pattern, non-blocking `SCAN` invalidation on mutations, and `X-Cache` observability.
 - [x] **API Rate Limiting**: Distributed sliding-window rate limiting at API Gateway (15 req/min auth, 30 req/min orders, 100 req/min general) using Redis.
 - [x] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
+- [x] **Notification Microservice (8th Service)**: Asynchronous transactional email/SMS dispatch with Nodemailer, HTML templating, DLQ protection, and user notification inbox.
 - [ ] **Observability**: Integrate Prometheus, Grafana, OpenTelemetry, and Jaeger for centralized metrics and latency telemetry.
 - [ ] **Kubernetes (K8s) Deployment**: Package services into Helm charts with Horizontal Pod Autoscaling (HPA) and Ingress routing.
 

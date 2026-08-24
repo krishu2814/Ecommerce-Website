@@ -1,0 +1,24 @@
+{
+  "name": "notification-service",
+  "version": "1.0.0",
+  "description": "Event-driven Notification Microservice for Ecommerce Ecosystem",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "keywords": ["ecommerce", "microservices", "notifications", "email", "sms", "rabbitmq"],
+  "author": "Krishu Kumar",
+  "license": "MIT",
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.3.1",
+    "nodemailer": "^6.9.16"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
