@@ -44,6 +44,11 @@ services:
 
     environment:
       PORT: 5009
+      RABBITMQ_URL: amqp://rabbitmq:5672
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
     networks:
       - ecommerce-network
@@ -93,6 +98,7 @@ services:
     environment:
       PORT: 5010
       PRODUCT_SERVICE_URL: http://product-service:5009
+      INVENTORY_SERVICE_URL: http://inventory-service:5016
       RABBITMQ_URL: amqp://rabbitmq:5672
 
     depends_on:
