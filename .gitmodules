@@ -25,3 +25,6 @@
 [submodule "services/Review-Service"]
 	path = services/Review-Service
 	url = https://github.com/krishu2814/Review-Service.git
+[submodule "services/AI-Service"]
+	path = services/AI-Service
+	url = https://github.com/krishu2814/AI-Service.git

@@ -115,6 +115,7 @@ All services are structured as modular components and linked via Git submodules:
 | **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Order Service, RabbitMQ | ✅ Active |
 | **Notification Service** | [Notification-Service](https://github.com/krishu2814/Notification-Service.git) | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, RabbitMQ | ✅ Active |
 | **Review Service** | [Review-Service](https://github.com/krishu2814/Review-Service.git) | `5017` | HTTP + AMQP | MongoDB (`ecommerce_review`) | Aggregation Pipelines, RabbitMQ | ✅ Active |
+| **AI Service** | [AI-Service](https://github.com/krishu2814/AI-Service.git) | `5018` | HTTP | MongoDB (`ecommerce_ai`) | GenAI Agents, Tool Calling | ✅ Active |
 
 ---
 

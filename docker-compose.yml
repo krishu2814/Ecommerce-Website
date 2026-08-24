@@ -292,6 +292,35 @@ services:
       - ecommerce-network
 
   # ==========================================
+  # AI SERVICE (GENAI & AGENT LAYER)
+  # ==========================================
+
+  ai-service:
+    build:
+      context: ./services/AI-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-ai-service
+    restart: unless-stopped
+
+    ports:
+      - "5018:5018"
+
+    env_file:
+      - ./services/AI-Service/.env
+
+    environment:
+      PORT: 5018
+      PRODUCT_SERVICE_URL: http://product-service:5009
+      CART_SERVICE_URL: http://cart-service:5010
+      ORDER_SERVICE_URL: http://order-service:5012
+      PAYMENT_SERVICE_URL: http://payment-service:5013
+      INVENTORY_SERVICE_URL: http://inventory-service:5016
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
   # API GATEWAY
   # ==========================================
 
@@ -320,6 +349,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:5016
       NOTIFICATION_SERVICE_URL: http://notification-service:5015
       REVIEW_SERVICE_URL: http://review-service:5017
+      AI_SERVICE_URL: http://ai-service:5018
       REDIS_URL: redis://redis:6379
 
     depends_on:
@@ -331,6 +361,7 @@ services:
       - inventory-service
       - notification-service
       - review-service
+      - ai-service
       - redis
 
     networks:
