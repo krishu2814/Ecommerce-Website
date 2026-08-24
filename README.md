@@ -811,6 +811,29 @@ docker compose down
 | `ORDER_SERVICE_URL` | API Gateway, Payment, Inventory | Base URL for Order Service | `http://order-service:5012` |
 | `PAYMENT_SERVICE_URL` | API Gateway | Base URL for Payment Service | `http://payment-service:5013` |
 | `INVENTORY_SERVICE_URL` | API Gateway | Base URL for Inventory Service | `http://inventory-service:5016` |
+| `REDIS_URL` | API Gateway, Product Service | Redis connection URI | `redis://localhost:6379`, `redis://redis:6379` |
+
+---
+
+## ⚡ Redis Distributed Caching & Gateway Rate Limiting
+
+### 1. Product Catalog Cache-Aside Engine
+To achieve sub-millisecond catalog reads and offload database pressure from MongoDB:
+- **`GET /api/v1/products/:id`**: Cached in Redis under key `product:${id}` with a **1-hour TTL (3600s)**.
+- **`GET /api/v1/products` (Catalog Query/Filter)**: Cached in Redis under deterministic query hash `products:list:${hash}` with a **5-minute TTL (300s)**.
+- **Event-Driven Cache Invalidation**:
+  - `POST /products`: Automatically purges `products:list:*` using non-blocking Redis `SCAN`.
+  - `PATCH /products/:id`: Invalidates `product:${id}` and all `products:list:*` cache entries.
+  - `DELETE /products/:id`: Evicts `product:${id}` and `products:list:*` caches.
+- **Observability**: Responses include standard `X-Cache: HIT` or `X-Cache: MISS` headers.
+
+### 2. Tiered Sliding-Window Rate Limiting at API Gateway
+Implemented via an atomic Redis pipeline (`INCR` + `EXPIRE` / `TTL`) to protect downstream microservices:
+- **Auth Endpoint (`/api/v1/auth/*`)**: Strict limit of **15 requests/minute** per IP (prevents credential stuffing and brute-force attacks).
+- **Checkout & Orders (`/api/v1/orders`, `/api/v1/payment`)**: Limit of **30 requests/minute** per authenticated user / IP (prevents duplicate rapid order placement & card-testing bots).
+- **General Traffic (Default)**: Limit of **100 requests/minute** per client across all other routes.
+- **Standards-Compliant Headers**: Returns `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Retry-After` on HTTP `429 Too Many Requests`.
+- **Fail-Open Strategy**: If Redis is momentarily unreachable, the gateway logs a warning and gracefully passes traffic through to prevent catastrophic cascading outages.
 
 ---
 
@@ -819,9 +842,9 @@ docker compose down
 - [x] **Choreographed Saga Failure Handling & Automated Rollbacks**: `PAYMENT_FAILED` triggers automatic `releaseReservationsByOrderId()` in Inventory and transitions Order to `CANCELLED`.
 - [x] **Reservation TTL Expiry & Compensation**: Background worker sweeps unfulfilled reservations (>15m), releases physical inventory, and emits `RESERVATION_EXPIRED` to cancel lingering orders.
 - [x] **Dead Letter Queues (DLQ) & Exponential Backoff Retries**: Dedicated DLX topic exchange (`ecommerce_dlx`), isolated `${queueName}_dlq` parking, and multi-stage TTL delay queues (1s ➔ 2s ➔ 4s) with audit metadata headers.
-- [ ] **Redis Distributed Caching & Redlock**: Cache product catalog queries and implement Redis distributed locking for extreme-concurrency flash sales.
+- [x] **Redis Distributed Caching & Cache Invalidation**: Sub-millisecond catalog reads via Cache-Aside pattern, non-blocking `SCAN` invalidation on mutations, and `X-Cache` observability.
+- [x] **API Rate Limiting**: Distributed sliding-window rate limiting at API Gateway (15 req/min auth, 30 req/min orders, 100 req/min general) using Redis.
 - [ ] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
-- [ ] **API Rate Limiting**: Implement token-bucket rate limiting at API Gateway (e.g. 100 req/min per IP/user) using Redis.
 - [ ] **Observability**: Integrate Prometheus, Grafana, OpenTelemetry, and Jaeger for centralized metrics and latency telemetry.
 - [ ] **Kubernetes (K8s) Deployment**: Package services into Helm charts with Horizontal Pod Autoscaling (HPA) and Ingress routing.
 

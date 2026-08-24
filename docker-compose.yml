@@ -25,6 +25,30 @@ services:
       - ecommerce-network
 
   # ==========================================
+  # REDIS DISTRIBUTED CACHE & RATE LIMITER
+  # ==========================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
   # PRODUCT SERVICE
   # ==========================================
 
@@ -45,9 +69,12 @@ services:
     environment:
       PORT: 5009
       RABBITMQ_URL: amqp://rabbitmq:5672
+      REDIS_URL: redis://redis:6379
 
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
     networks:
@@ -229,6 +256,7 @@ services:
       ORDER_SERVICE_URL: http://order-service:5012
       PAYMENT_SERVICE_URL: http://payment-service:5013
       INVENTORY_SERVICE_URL: http://inventory-service:5016
+      REDIS_URL: redis://redis:6379
 
     depends_on:
       - product-service
@@ -237,6 +265,7 @@ services:
       - order-service
       - payment-service
       - inventory-service
+      - redis
 
     networks:
       - ecommerce-network
@@ -247,6 +276,7 @@ services:
 
 volumes:
   rabbitmq_data:
+  redis_data:
 
 # ==========================================
 # NETWORK
