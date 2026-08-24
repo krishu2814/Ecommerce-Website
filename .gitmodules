@@ -22,3 +22,6 @@
 [submodule "services/Notification-Service"]
 	path = services/Notification-Service
 	url = https://github.com/krishu2814/Notification-Service.git
+[submodule "services/Review-Service"]
+	path = services/Review-Service
+	url = https://github.com/krishu2814/Review-Service.git
