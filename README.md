@@ -100,22 +100,24 @@ The platform decomposes standard ecommerce domains into independently deployable
 
 ---
 
-## 🧩 Microservices Catalog & Repositories
+## 🧩 Microservices & Frontend Catalog
 
-All services are structured as modular components and linked via Git submodules:
+All services and the frontend client are structured as modular components:
 
-| Service | Repository Link | Port | Protocol | Primary Database | Key Dependencies | Status |
+| Component / Service | Repository / Folder | Port | Protocol | Primary Database | Key Capabilities | Status |
 | :--- | :--- | :---: | :---: | :--- | :--- | :---: |
-| **API Gateway** | [ApiGateway-Service](https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git) | `5014` | HTTP | — | Auth, Product, Cart, Order, Payment, Inventory, Notification | ✅ Active |
-| **Auth Service** | [Auth-Service](https://github.com/krishu2814/Auth-Service) | `5011` | HTTP | MongoDB (`ecommerce_auth`) | Bcrypt, JWT | ✅ Active |
-| **Product Service** | [Product-Service](https://github.com/krishu2814/Product-Service) | `5009` | HTTP | MongoDB (`ecommerce_product`) | Text Search Indexes | ✅ Active |
-| **Cart Service** | [Cart-Service](https://github.com/krishu2814/Cart-Service) | `5010` | HTTP + AMQP | MongoDB (`ecommerce_cart`) | Product Service, RabbitMQ | ✅ Active |
-| **Order Service** | [Order-Service](https://github.com/krishu2814/Order-Service) | `5012` | HTTP + AMQP | MongoDB (`ecommerce_order`) | Cart Service, Product Service, RabbitMQ | ✅ Active |
-| **Inventory Service** | [Inventory-Service](https://github.com/krishu2814/Inventory-Service.git) | `5016` | HTTP + AMQP | MongoDB (`ecommerce_inventory`) | Product Service, RabbitMQ | ✅ Active |
-| **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Order Service, RabbitMQ | ✅ Active |
-| **Notification Service** | [Notification-Service](https://github.com/krishu2814/Notification-Service.git) | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, RabbitMQ | ✅ Active |
-| **Review Service** | [Review-Service](https://github.com/krishu2814/Review-Service.git) | `5017` | HTTP + AMQP | MongoDB (`ecommerce_review`) | Aggregation Pipelines, RabbitMQ | ✅ Active |
-| **AI Service** | [AI-Service](https://github.com/krishu2814/AI-Service.git) | `5018` | HTTP | MongoDB (`ecommerce_ai`) | GenAI Agents, Tool Calling | ✅ Active |
+| **React Storefront Client** | [`client/`](./client) | `3000` | HTTP / SPA | Browser Cache | React 19, Vite, Vanilla CSS Design System, AI ReAct Widget, Cart Drawer | ✅ Active |
+| **API Gateway** | [ApiGateway-Service](https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git) | `5014` | HTTP | — | Reverse Proxy, Rate Limiting (Redis), Auth Stripping, Tracing | ✅ Active |
+| **Auth Service** | [Auth-Service](https://github.com/krishu2814/Auth-Service) | `5011` | HTTP | MongoDB (`ecommerce_auth`) | Bcrypt, JWT, User Roles (Customer/Vendor/Admin) | ✅ Active |
+| **Product Service** | [Product-Service](https://github.com/krishu2814/Product-Service) | `5009` | HTTP | MongoDB (`ecommerce_product`) | Text Search, Redis Cache-Aside, Filtering | ✅ Active |
+| **Cart Service** | [Cart-Service](https://github.com/krishu2814/Cart-Service) | `5010` | HTTP + AMQP | MongoDB (`ecommerce_cart`) | Line items, Price sync, Auto-clear on Order | ✅ Active |
+| **Order Service** | [Order-Service](https://github.com/krishu2814/Order-Service) | `5012` | HTTP + AMQP | MongoDB (`ecommerce_order`) | Saga Coordination, Lifecycle State, Coupons | ✅ Active |
+| **Inventory Service** | [Inventory-Service](https://github.com/krishu2814/Inventory-Service.git) | `5016` | HTTP + AMQP | MongoDB (`ecommerce_inventory`) | 2-Phase Reservation, Auto TTL Expiry, Stock Locks | ✅ Active |
+| **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Payment Processing, Saga Compensation | ✅ Active |
+| **Notification Service** | [Notification-Service](https://github.com/krishu2814/Notification-Service.git) | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, HTML Templates, DLQ Protection | ✅ Active |
+| **Review Service** | [Review-Service](https://github.com/krishu2814/Review-Service.git) | `5017` | HTTP + AMQP | MongoDB (`ecommerce_review`) | Verified Purchases, Star Breakdown, Helpful Votes | ✅ Active |
+| **AI Service** | [AI-Service](https://github.com/krishu2814/AI-Service.git) | `5018` | HTTP | MongoDB (`ecommerce_ai`) | Autonomous ReAct Agent, Tool Calling, Sessions | ✅ Active |
+| **Refund & RMA Service** | [Refund-Service](./services/Refund-Service) | `5019` | HTTP + AMQP | MongoDB (`ecommerce_refund`) | RMA Tracking, Shipping Labels, Quality Inspection, Gateway Refunds | ✅ Active |
 
 ---
 
@@ -928,6 +930,90 @@ The **Notification Service** (`services/Notification-Service`, Port `5015`) oper
 
 ---
 
+## 🔄 Return & Refund Service (RMA - 11th Microservice)
+
+The **Refund Service** (`services/Refund-Service`, Port `5019`) implements complete automated Return Merchandise Authorization (RMA) workflows, quality inspection branching, shipping label generation, and payment gateway refund processing.
+
+```text
+                                  ┌───────────────────────────┐
+                                  │      RABBITMQ BROKER      │
+                                  │  `ecommerce_events` Topic │
+                                  └─────────────┬─────────────┘
+                                                │
+                 ┌──────────────────────────────┼──────────────────────────────┐
+                 │ `RETURN_REQUESTED`           │ `RETURN_INSPECTED`           │ `REFUND_PROCESSED`
+                 ▼                              ▼                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                REFUND & RMA SERVICE (Port 5019)                             │
+│                                                                                             │
+│  ► Return Lifecycle State Machine:                                                          │
+│    `RETURN_REQUESTED` ➔ `PICKUP_SCHEDULED` ➔ `ITEM_INSPECTED` ➔ `REFUND_PROCESSED`          │
+│    (or `REJECTED` if item fails warehouse quality check)                                    │
+│                                                                                             │
+│  ► Automated Return Shipping Labels:                                                        │
+│    • Generates unique commercial tracking numbers (`RET-TRK-...`) and barcode IDs           │
+│    • Downloadable & printable label metadata: `GET /api/v1/returns/:id/shipping-label`       │
+│                                                                                             │
+│  ► Multi-Gateway Refund Engine (`payment-gateway.js`):                                      │
+│    • Supports Full and Partial Refund calculations with double-refund guards                 │
+│    • Integrates with Stripe, Razorpay, and Mock Payment Gateways                            │
+│    • Generates verifiable transaction IDs (`REF_TXN_...`)                                   │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### RMA Endpoints Reference:
+* `POST /api/v1/returns`: Submit new return request with item selection, reason, and pickup address.
+* `GET /api/v1/returns/my-returns`: Retrieve list of return requests created by the authenticated user.
+* `GET /api/v1/returns/:id`: Fetch complete return status and audit timeline by return ID.
+* `POST /api/v1/returns/:id/pickup`: Schedule courier pickup date, time slot, and carrier partner.
+* `POST /api/v1/returns/:id/inspect`: Warehouse inspection desk (marks `ITEM_INSPECTED` or `REJECTED`).
+* `POST /api/v1/returns/:id/refund`: Execute full/partial refund via payment gateway.
+* `GET /api/v1/returns/:id/shipping-label`: Retrieve printable return shipping label.
+
+---
+
+## 💻 React 19 + Vite Modern Frontend Storefront (`client/`)
+
+A state-of-the-art, responsive, lightweight Single Page Application built with **React 19, Vite, and modern Vanilla CSS** connecting seamlessly through the **API Gateway** (`http://localhost:5014/api/v1`).
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                 React + Vite Frontend (SPA)                 │
+│       (Catalog, Cart Drawer, Checkout, Orders, RMA, AI)     │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ HTTP / JSON (Axios)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 API Gateway (Port 5014)                     │
+│    (JWT Verification, Anti-Spoofing, Rate Limiting, CORS)   │
+└──────┬──────┬──────┬──────┬──────┬──────┬──────┬──────┬─────┘
+       │      │      │      │      │      │      │      │
+     Auth   Product Cart  Order Payment Invent. Review  AI/RMA
+     :5011  :5009   :5010 :5012 :5013   :5016  :5017   :5018/:5019
+```
+
+### 🌟 Key Frontend Features:
+1. **Interactive Product Catalog**: Real-time search with debounce, category pills, price range slider, star rating filters, and live warehouse inventory stock badges (`In Stock`, `Low Stock`, `Out of Stock`).
+2. **Product Details & Customer Reviews**: Live stock check, rating distribution charts, verified purchase badges, helpful voting buttons, and review submission form.
+3. **Slide-Over Shopping Cart Drawer**: Instant item quantity adjustments, coupon code applicator (`SAVE20`, `FLAT50`), live tax/shipping calculations.
+4. **Multi-Step Checkout & Saga Simulation**: Address collection, payment method selection (`Card`, `UPI`, `Net Banking`, `COD`), and a **Saga Failure Demo Toggle** to observe distributed transaction compensation in real time.
+5. **Real-Time Order Tracking**: 4-stage visual order tracking stepper (`Placed` ➔ `Confirmed` ➔ `Shipped` ➔ `Delivered`) and order cancellation.
+6. **Return Merchandise Authorization (RMA) Portal**: Submit return requests, schedule courier pickup, track warehouse inspection, and preview printable PDF shipping labels.
+7. **Floating AI ReAct Shopping Assistant Widget**: Chat with the autonomous AI agent, view multi-step reasoning thoughts, and interact with embedded product cards.
+8. **Admin & Vendor Control Room**: Monitor 11-microservice operational status, manage returns inspection desk, and create promotional coupons.
+
+### 🚀 Running the Frontend:
+```bash
+# In the project root:
+npm run client
+
+# Or directly in client directory:
+cd client && npm run dev
+```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser!
+
+---
+
 ## 🔮 Production Roadmap & Distributed Patterns
 
 - [x] **Choreographed Saga Failure Handling & Automated Rollbacks**: `PAYMENT_FAILED` triggers automatic `releaseReservationsByOrderId()` in Inventory and transitions Order to `CANCELLED`.
@@ -937,6 +1023,10 @@ The **Notification Service** (`services/Notification-Service`, Port `5015`) oper
 - [x] **API Rate Limiting**: Distributed sliding-window rate limiting at API Gateway (15 req/min auth, 30 req/min orders, 100 req/min general) using Redis.
 - [x] **Distributed Tracing & Correlation IDs**: Propagate `x-correlation-id` through the API Gateway, HTTP headers, and RabbitMQ message properties for end-to-end request tracing.
 - [x] **Notification Microservice (8th Service)**: Asynchronous transactional email/SMS dispatch with Nodemailer, HTML templating, DLQ protection, and user notification inbox.
+- [x] **Review Microservice (9th Service)**: Customer review management, star ratings, verified purchase tags, helpfulness votes, and product review aggregations.
+- [x] **AI Shopping Agent Service (10th Service)**: Multi-step ReAct agent using tool calling to search products, verify stock, and provide conversational shopping recommendations.
+- [x] **Return & Refund RMA Microservice (11th Service)**: Complete return lifecycle state machine, shipping label generator, courier pickup scheduler, inspection desk, and gateway refunds.
+- [x] **Lightweight React 19 + Vite Storefront**: Production-ready modern frontend with Dark Sapphire theme, cart drawer, checkout, orders, returns, and AI assistant widget.
 - [ ] **Observability**: Integrate Prometheus, Grafana, OpenTelemetry, and Jaeger for centralized metrics and latency telemetry.
 - [ ] **Kubernetes (K8s) Deployment**: Package services into Helm charts with Horizontal Pod Autoscaling (HPA) and Ingress routing.
 
