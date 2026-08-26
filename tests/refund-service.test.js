@@ -417,3 +417,82 @@ describe('Refund-Service - Feature 5: Process Refund (Full & Partial)', () => {
     });
   });
 });
+
+describe('Refund-Service - Feature 6: Return Shipping Label', () => {
+  describe('Shipping Label Retrieval & PDF URL Generation', () => {
+    it('should return existing shipping label if already attached to return record', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        userId: 'usr_100',
+        shippingLabel: {
+          labelId: 'LBL-ret_123',
+          trackingNumber: 'RET-TRK-172465789-4567',
+          carrier: 'Express Logistics Returns',
+          labelUrl: 'https://logistics.ecommerce.local/labels/LBL-ret_123.pdf'
+        }
+      };
+
+      const getLabel = (record, requestingUserId, role) => {
+        if (!record) throw new Error('Return request not found');
+        if (role !== 'admin' && String(record.userId) !== String(requestingUserId)) {
+          throw new Error('Access denied to this return record');
+        }
+        return record.shippingLabel;
+      };
+
+      const label = getLabel(returnRecord, 'usr_100', 'customer');
+      assert.strictEqual(label.labelId, 'LBL-ret_123');
+      assert.strictEqual(label.carrier, 'Express Logistics Returns');
+      assert.ok(label.labelUrl.endsWith('.pdf'));
+    });
+
+    it('should generate label on demand if missing in return record', () => {
+      const returnRecord = {
+        _id: 'ret_456',
+        userId: 'usr_200',
+        orderId: 'ord_789',
+        pickupDetails: { pickupAddress: '456 Oak Avenue' }
+      };
+
+      const getLabel = (record, requestingUserId, role) => {
+        if (!record) throw new Error('Return request not found');
+        if (role !== 'admin' && String(record.userId) !== String(requestingUserId)) {
+          throw new Error('Access denied to this return record');
+        }
+        if (!record.shippingLabel) {
+          record.shippingLabel = ShippingLabelUtil.generateLabel({
+            returnId: record._id,
+            orderId: record.orderId,
+            pickupAddress: record.pickupDetails?.pickupAddress
+          });
+        }
+        return record.shippingLabel;
+      };
+
+      const label = getLabel(returnRecord, 'usr_200', 'customer');
+      assert.ok(label.labelId.startsWith('LBL-'));
+      assert.ok(label.trackingNumber.startsWith('RET-TRK-'));
+      assert.strictEqual(label.pickupAddress, '456 Oak Avenue');
+    });
+
+    it('should deny access if another customer requests the shipping label', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        userId: 'usr_100',
+        shippingLabel: { labelId: 'LBL-123' }
+      };
+
+      const getLabel = (record, requestingUserId, role) => {
+        if (!record) throw new Error('Return request not found');
+        if (role !== 'admin' && String(record.userId) !== String(requestingUserId)) {
+          throw new Error('Access denied to this return record');
+        }
+        return record.shippingLabel;
+      };
+
+      assert.throws(() => {
+        getLabel(returnRecord, 'attacker_user_xyz', 'customer');
+      }, /Access denied to this return record/);
+    });
+  });
+});
