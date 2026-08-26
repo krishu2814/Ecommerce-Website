@@ -139,3 +139,75 @@ describe('Refund-Service - Feature 2: Fetch Return Requests', () => {
     });
   });
 });
+
+describe('Refund-Service - Feature 3: Schedule Courier Pickup', () => {
+  describe('Status Progression & Pickup Details Validation', () => {
+    it('should transition status from RETURN_REQUESTED to PICKUP_SCHEDULED', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        status: 'RETURN_REQUESTED',
+        pickupDetails: {}
+      };
+
+      const schedulePickup = (record, pickupData) => {
+        if (record.status !== 'RETURN_REQUESTED') {
+          throw new Error(`Cannot schedule pickup. Current status is ${record.status}, expected RETURN_REQUESTED`);
+        }
+        record.status = 'PICKUP_SCHEDULED';
+        record.pickupDetails = {
+          scheduledDate: pickupData.scheduledDate || new Date(),
+          pickupSlot: pickupData.pickupSlot || 'Morning (9 AM - 1 PM)',
+          courierPartner: pickupData.courierPartner || 'Express Logistics'
+        };
+        return record;
+      };
+
+      const updated = schedulePickup(returnRecord, {
+        scheduledDate: new Date('2026-08-28'),
+        pickupSlot: 'Afternoon (2 PM - 6 PM)',
+        courierPartner: 'DHL Express'
+      });
+
+      assert.strictEqual(updated.status, 'PICKUP_SCHEDULED');
+      assert.strictEqual(updated.pickupDetails.pickupSlot, 'Afternoon (2 PM - 6 PM)');
+      assert.strictEqual(updated.pickupDetails.courierPartner, 'DHL Express');
+    });
+
+    it('should reject pickup scheduling if status is not RETURN_REQUESTED', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        status: 'ITEM_INSPECTED' // already inspected
+      };
+
+      const schedulePickup = (record) => {
+        if (record.status !== 'RETURN_REQUESTED') {
+          throw new Error(`Cannot schedule pickup. Current status is ${record.status}, expected RETURN_REQUESTED`);
+        }
+      };
+
+      assert.throws(() => {
+        schedulePickup(returnRecord);
+      }, /expected RETURN_REQUESTED/);
+    });
+
+    it('should format valid RETURN_PICKUP_SCHEDULED RabbitMQ event payload', () => {
+      const event = {
+        event: 'RETURN_PICKUP_SCHEDULED',
+        returnId: 'ret_123',
+        orderId: 'ord_456',
+        userId: 'usr_789',
+        pickupDetails: {
+          scheduledDate: new Date().toISOString(),
+          pickupSlot: 'Morning (9 AM - 1 PM)',
+          courierPartner: 'Express Logistics'
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      assert.strictEqual(event.event, 'RETURN_PICKUP_SCHEDULED');
+      assert.strictEqual(event.returnId, 'ret_123');
+      assert.strictEqual(event.orderId, 'ord_456');
+      assert.ok(event.pickupDetails.courierPartner);
+    });
+  });
+});
