@@ -1,1 +1,20 @@
-{}
+{
+  "name": "ecommerce-microservices-root",
+  "version": "1.0.0",
+  "description": "Production-Grade Distributed Ecommerce Microservices Platform",
+  "scripts": {
+    "test": "node tests/run-all-tests.js",
+    "test:watch": "node --test --watch tests/*.test.js",
+    "setup:env": "bash setup-env.sh"
+  },
+  "keywords": [
+    "microservices",
+    "ecommerce",
+    "distributed-systems",
+    "event-driven",
+    "rabbitmq",
+    "redis"
+  ],
+  "author": "Krishu Kumar",
+  "license": "MIT"
+}
