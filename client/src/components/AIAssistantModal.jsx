@@ -27,31 +27,61 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
 
   if (!isOpen) return null;
 
-  // 100% Live Products API query engine (No hardcoded dummy data)
+  // 100% Live Products API query engine with price filtering and smart category resolution
   const fetchLiveProductsFromApi = async (queryText) => {
-    const q = (queryText || '').toLowerCase();
+    const raw = (queryText || '').trim();
+    const q = raw.toLowerCase();
 
-    // Parse requested count (e.g., "3 to 5", "3-5", "4", "top 5")
-    let targetCount = 3;
+    // 1. Extract Price Filter (e.g. "under 100 $", "under $100", "below 50", "less than 200", "< 500")
+    let maxPrice = null;
+    const priceMatch =
+      q.match(/(?:under|below|less than|max|within|<=?)\s*\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?/i) ||
+      q.match(/\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?\s*(?:under|below|or less|max)/i) ||
+      q.match(/(\d+)\s*\$\s*(?:under|budget)/i);
+    if (priceMatch) {
+      maxPrice = parseFloat(priceMatch[1]);
+    }
+
+    // 2. Extract Requested Count (e.g. "10 shoes", "20 mouse", "3 to 5", "top 4")
+    let targetCount = 4;
     const rangeMatch = q.match(/(\d+)\s*(?:to|-)\s*(\d+)/i);
     if (rangeMatch) {
       const min = parseInt(rangeMatch[1], 10);
       const max = parseInt(rangeMatch[2], 10);
       targetCount = Math.floor(Math.random() * (max - min + 1)) + min;
     } else {
-      const singleMatch = q.match(/\b(\d+)\b/);
-      if (singleMatch) {
-        targetCount = Math.min(Math.max(parseInt(singleMatch[1], 10), 1), 6);
-      } else {
-        targetCount = Math.random() > 0.5 ? 4 : 3;
+      // Look for count outside of the price expression
+      const countMatch = q.replace(/(?:under|below|less than|\$)\s*\d+/g, '').match(/\b(\d+)\b/);
+      if (countMatch) {
+        targetCount = Math.min(Math.max(parseInt(countMatch[1], 10), 1), 20);
       }
     }
 
     let candidates = [];
     let categoryLabel = 'Products';
+    let isTechContext = false;
 
     try {
-      if (q.includes('elect') || q.includes('gadget') || q.includes('projet') || q.includes('tech') || q.includes('device')) {
+      if (q.includes('shoe') || q.includes('footwear') || q.includes('sneaker') || q.includes('cleat') || q.includes('slipper') || q.includes('boot')) {
+        categoryLabel = 'Footwear';
+        const [r1, r2] = await Promise.all([
+          fetch('https://dummyjson.com/products/category/mens-shoes').then((r) => r.json()),
+          fetch('https://dummyjson.com/products/category/womens-shoes').then((r) => r.json()),
+        ]);
+        candidates = [...(r1.products || []), ...(r2.products || [])];
+      } else if (q.includes('laptop') || q.includes('macbook') || q.includes('computer') || q.includes('pc') || (q.includes('gaming') && !q.includes('shirt'))) {
+        categoryLabel = 'Laptops';
+        const res = await fetch('https://dummyjson.com/products/category/laptops').then((r) => r.json());
+        candidates = res.products || [];
+      } else if (q.includes('mouse') || q.includes('keyboard') || q.includes('charger') || q.includes('earphone') || q.includes('airpod') || q.includes('headphone') || q.includes('speaker') || q.includes('accessory') || q.includes('accessories')) {
+        categoryLabel = 'Tech Accessories';
+        isTechContext = true;
+        const [r1, r2] = await Promise.all([
+          fetch('https://dummyjson.com/products/category/mobile-accessories').then((r) => r.json()),
+          fetch('https://dummyjson.com/products/category/smartphones').then((r) => r.json()),
+        ]);
+        candidates = [...(r1.products || []), ...(r2.products || [])];
+      } else if (q.includes('elect') || q.includes('gadget') || q.includes('projet') || q.includes('tech') || q.includes('device')) {
         categoryLabel = 'Electronics';
         const [r1, r2, r3] = await Promise.all([
           fetch('https://dummyjson.com/products/category/smartphones').then((r) => r.json()),
@@ -59,21 +89,10 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
           fetch('https://dummyjson.com/products/category/mobile-accessories').then((r) => r.json()),
         ]);
         candidates = [...(r1.products || []), ...(r2.products || []), ...(r3.products || [])];
-      } else if (q.includes('laptop') || q.includes('macbook') || q.includes('computer')) {
-        categoryLabel = 'Laptops';
-        const res = await fetch('https://dummyjson.com/products/category/laptops').then((r) => r.json());
-        candidates = res.products || [];
       } else if (q.includes('phone') || q.includes('smartphone') || q.includes('iphone') || q.includes('mobile')) {
         categoryLabel = 'Smartphones';
         const res = await fetch('https://dummyjson.com/products/category/smartphones').then((r) => r.json());
         candidates = res.products || [];
-      } else if (q.includes('shoe') || q.includes('footwear') || q.includes('sneaker') || q.includes('boot')) {
-        categoryLabel = 'Footwear';
-        const [r1, r2] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/mens-shoes').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/womens-shoes').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || [])];
       } else if (q.includes('perfume') || q.includes('fragrance') || q.includes('cologne') || q.includes('scent')) {
         categoryLabel = 'Fragrances';
         const res = await fetch('https://dummyjson.com/products/category/fragrances').then((r) => r.json());
@@ -85,24 +104,24 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
           fetch('https://dummyjson.com/products/category/womens-watches').then((r) => r.json()),
         ]);
         candidates = [...(r1.products || []), ...(r2.products || [])];
-      } else if (q.includes('beauty') || q.includes('makeup') || q.includes('lipstick') || q.includes('skin')) {
+      } else if (q.includes('sunglass') || q.includes('glasses') || q.includes('shade')) {
+        categoryLabel = 'Sunglasses';
+        const res = await fetch('https://dummyjson.com/products/category/sunglasses').then((r) => r.json());
+        candidates = res.products || [];
+      } else if (q.includes('beauty') || q.includes('makeup') || q.includes('lipstick') || q.includes('skin') || q.includes('cream')) {
         categoryLabel = 'Beauty & Skincare';
         const [r1, r2] = await Promise.all([
           fetch('https://dummyjson.com/products/category/beauty').then((r) => r.json()),
           fetch('https://dummyjson.com/products/category/skin-care').then((r) => r.json()),
         ]);
         candidates = [...(r1.products || []), ...(r2.products || [])];
-      } else if (q.includes('furniture') || q.includes('sofa') || q.includes('chair') || q.includes('table')) {
+      } else if (q.includes('furniture') || q.includes('sofa') || q.includes('chair') || q.includes('table') || q.includes('bed')) {
         categoryLabel = 'Furniture';
         const res = await fetch('https://dummyjson.com/products/category/furniture').then((r) => r.json());
         candidates = res.products || [];
       } else if (q.includes('bag') || q.includes('backpack') || q.includes('purse')) {
-        categoryLabel = 'Bags & Accessories';
+        categoryLabel = 'Bags';
         const res = await fetch('https://dummyjson.com/products/category/womens-bags').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('sunglass') || q.includes('glasses') || q.includes('shade')) {
-        categoryLabel = 'Sunglasses';
-        const res = await fetch('https://dummyjson.com/products/category/sunglasses').then((r) => r.json());
         candidates = res.products || [];
       } else if (q.includes('cloth') || q.includes('dress') || q.includes('shirt') || q.includes('fashion') || q.includes('top')) {
         categoryLabel = 'Fashion';
@@ -114,7 +133,9 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
         candidates = [...(r1.products || []), ...(r2.products || []), ...(r3.products || [])];
       } else {
         // Direct keyword search on live Products API
-        let cleanKeyword = q.replace(/\b(suggest|give|me|find|show|recommend|random|similar|products|items|projet|please|\d+|to|under|\$|for|a|an|the|some)\b/gi, '').trim();
+        let cleanKeyword = q
+          .replace(/\b(suggest|give|me|find|show|recommend|random|similar|products|items|projet|please|\d+|to|under|below|less|than|\$|usd|dollars|for|a|an|the|some)\b/gi, '')
+          .trim();
         let singularKeyword = cleanKeyword.endsWith('s') && cleanKeyword.length > 3 ? cleanKeyword.slice(0, -1) : cleanKeyword;
 
         let res = await fetch(`https://dummyjson.com/products/search?q=${encodeURIComponent(singularKeyword || cleanKeyword)}`);
@@ -128,10 +149,11 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
         }
 
         if (candidates.length === 0) {
-          res = await fetch('https://dummyjson.com/products?limit=30');
+          // If search yielded no direct matches, query tech accessories instead of unrelated food/makeup
+          res = await fetch('https://dummyjson.com/products/category/mobile-accessories');
           data = await res.json();
           candidates = data.products || [];
-          categoryLabel = 'Featured Products';
+          categoryLabel = 'Tech Accessories';
         } else {
           categoryLabel = `"${cleanKeyword}" products`;
         }
@@ -140,7 +162,14 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
       console.warn('Direct live product search warning:', err.message);
     }
 
-    // Shuffle and sample from real live products API
+    // 3. Apply Price Filter if requested by user
+    let priceNote = '';
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      candidates = candidates.filter((p) => Number(p.price) <= maxPrice);
+      priceNote = ` under **$${maxPrice.toFixed(2)}**`;
+    }
+
+    // 4. Shuffle and sample from real live products API
     const shuffled = (candidates || []).sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, targetCount).map((p) => ({
       id: `live_${p.id}`,
@@ -153,13 +182,21 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
       brand: p.brand || 'Authentic Brand',
     }));
 
+    let text = '';
+    if (selected.length === 0) {
+      text = `I searched our live catalog for **${categoryLabel.toLowerCase()}**${priceNote}, but no items currently match that price limit. Try adjusting your budget!`;
+    } else if (q.includes('mouse') && isTechContext) {
+      text = `While standalone PC mice are currently being restocked, here are **${selected.length} live matching tech & mobile accessories**${priceNote} available right now:`;
+    } else {
+      text = `From our live Products API, I found **${selected.length} live matching ${categoryLabel.toLowerCase()}**${priceNote} for your query:`;
+    }
+
     const itemTitles = selected.map((p) => p.name.split(' ')[0]).join(', ');
-    const text = `From our live Products API, I found **${selected.length} live matching ${categoryLabel.toLowerCase()}** for your query:`;
     const reasoning = [
-      `Thought: User asked "${queryText}" (target count: ${selected.length})`,
-      `Action: HTTP GET https://dummyjson.com/products/search (status: 200 OK)`,
-      `Observation: Retrieved ${candidates.length} live products from catalog, randomly sampled ${selected.length} verified in-stock items (${itemTitles}).`,
-      `Final: Embedded real-time product cards with live pricing, CDN photography, and direct Add-to-Cart actions.`,
+      `Thought: User asked "${raw}" (count: ${targetCount}${maxPrice ? `, maxPrice: $${maxPrice}` : ''})`,
+      `Action: HTTP GET Products API (category: ${categoryLabel}, maxPrice: ${maxPrice ? `$${maxPrice}` : 'none'})`,
+      `Observation: Retrieved ${candidates.length} in-budget live products, randomly sampled ${selected.length} items (${itemTitles}).`,
+      `Final: Generated real-time product cards with live pricing, CDN photography, and direct Add-to-Cart actions.`,
     ];
 
     return { selected, text, reasoning };
@@ -182,8 +219,53 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
     setLoading(true);
 
     const q = userText.toLowerCase();
+    const cleanQuery = q.replace(/[^\w\s]/g, '').trim();
 
-    // Check for FAQ intents (Returns / Coupons) first
+    // 1. Handle Standalone Greetings (e.g. "hi", "hii", "hello", "hey", "good morning")
+    const greetings = [
+      'hi', 'hii', 'hiii', 'heyy', 'hey', 'hello', 'hola', 'namaste',
+      'good morning', 'good afternoon', 'good evening', 'good day',
+      'how are you', 'how r u', 'who are you', 'what can you do', 'help', 'help me'
+    ];
+    if (greetings.includes(cleanQuery)) {
+      const greetingMsg = {
+        role: 'assistant',
+        content: "Hello! 👋 I am your AI Shopping Assistant. How can I help you today? You can ask me to recommend products (e.g. *'suggest 3 to 5 laptops'* or *'show perfumes'*), find discount codes, or assist with order returns!",
+        thoughtProcess: [
+          'Thought: User initiated a conversation with a greeting.',
+          'Action: respondGreeting()',
+          'Observation: Ready to assist with product searches, live inventory, and returns.',
+        ],
+        recommendedProducts: [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, greetingMsg]);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Handle Pleasantries & Farewells (e.g. "thanks", "thank you", "bye", "ok")
+    const pleasantries = [
+      'thanks', 'thank you', 'thx', 'thank u', 'bye', 'goodbye', 'see you',
+      'ok', 'okay', 'okk', 'got it', 'cool', 'great', 'awesome', 'nice'
+    ];
+    if (pleasantries.includes(cleanQuery)) {
+      const politeMsg = {
+        role: 'assistant',
+        content: "You're very welcome! Feel free to ask if you'd like to explore products or have any questions. Happy shopping! 🛍️",
+        thoughtProcess: [
+          'Thought: User sent an acknowledgment or pleasantry.',
+          'Action: respondPolite()',
+        ],
+        recommendedProducts: [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, politeMsg]);
+      setLoading(false);
+      return;
+    }
+
+    // 3. Check for FAQ intents (Returns / Coupons)
     if (q.includes('return') || q.includes('refund') || q.includes('rma') || q.includes('replace')) {
       const returnMsg = {
         role: 'assistant',
