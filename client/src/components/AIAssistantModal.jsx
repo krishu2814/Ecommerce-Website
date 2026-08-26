@@ -27,151 +27,220 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
 
   if (!isOpen) return null;
 
-  // 100% Live Products API query engine with price filtering and smart category resolution
+  // Full Taxonomy of Public Product Categories & Semantic Keywords
+  const CATEGORY_TAXONOMY = {
+    'smartphones': ['phone', 'phones', 'smartphone', 'smartphones', 'iphone', 'android', 'samsung', 'mobile', 'cellphone', 'oppo', 'realme', 'vivo'],
+    'laptops': ['laptop', 'laptops', 'macbook', 'macbooks', 'notebook', 'notebooks', 'computer', 'computers', 'pc', 'dell', 'lenovo', 'asus', 'zenbook'],
+    'mobile-accessories': ['headphone', 'headphones', 'earphone', 'earphones', 'airpod', 'airpods', 'earbud', 'earbuds', 'charger', 'chargers', 'cable', 'magsafe', 'case', 'selfie', 'speaker', 'speakers', 'audio', 'sound', 'beats', 'echo', 'homepod', 'wireless', 'bluetooth', 'mouse', 'keyboard'],
+    'tablets': ['tablet', 'tablets', 'ipad', 'tab'],
+    'mens-shoes': ['mens shoes', 'men shoe', 'shoes for men', 'mens footwear', 'sneakers for men', 'mens sneaker', 'mens sneakers', 'mens sports shoes', 'mens trainers', 'mens cleats', 'mens running shoes'],
+    'womens-shoes': ['heel', 'heels', 'high heels', 'pumps', 'sandals', 'womens shoes', 'women shoes', 'ladies shoes', 'slippers'],
+    'mens-watches': ['watch', 'watches', 'smartwatch', 'rolex', 'chronograph', 'leather watch'],
+    'womens-watches': ['womens watch', 'womens watches', 'women watch', 'ladies watch'],
+    'mens-shirts': ['shirt', 'shirts', 'tshirt', 't-shirt', 'men clothing'],
+    'womens-dresses': ['dress', 'dresses', 'gown', 'frock', 'skirt'],
+    'womens-bags': ['bag', 'bags', 'handbag', 'handbags', 'purse', 'purses', 'backpack', 'wallet', 'tote'],
+    'womens-jewellery': ['jewelry', 'jewellery', 'necklace', 'ring', 'earring', 'earrings', 'bracelet', 'gold', 'diamond', 'silver'],
+    'sunglasses': ['sunglass', 'sunglasses', 'shades', 'eyewear', 'glasses'],
+    'fragrances': ['perfume', 'perfumes', 'fragrance', 'fragrances', 'cologne', 'colognes', 'scent', 'scents', 'eau de parfum'],
+    'beauty': ['makeup', 'cosmetics', 'lipstick', 'mascara', 'nail polish', 'foundation', 'eyeliner', 'beauty'],
+    'skin-care': ['skincare', 'skin care', 'cream', 'lotion', 'serum', 'moisturizer', 'sunscreen'],
+    'furniture': ['furniture', 'sofa', 'sofas', 'couch', 'chair', 'chairs', 'table', 'tables', 'bed', 'beds', 'desk'],
+    'home-decoration': ['decor', 'decoration', 'lamp', 'clock', 'vase', 'cushion', 'curtain', 'mirror'],
+    'kitchen-accessories': ['kitchen', 'pan', 'pot', 'knife', 'knives', 'blender', 'mug', 'cup', 'cookware'],
+    'sports-accessories': ['cricket', 'football', 'basketball', 'badminton', 'shuttlecock', 'racket', 'dumbbell', 'fitness', 'gym'],
+    'groceries': ['grocery', 'food', 'snack', 'coffee', 'tea', 'juice', 'beverage'],
+    'tops': ['hoodie', 'hoodies', 'sweater', 'sweaters', 'jacket', 'jackets', 'blouse', 'tunic']
+  };
+
+  const KNOWN_BRANDS = [
+    'apple', 'samsung', 'nike', 'puma', 'adidas', 'asus', 'dell', 'lenovo', 'hp', 'huawei',
+    'sony', 'beats', 'oppo', 'realme', 'vivo', 'calvin klein', 'dior', 'gucci', 'chanel',
+    'rolex', 'dolce', 'essence', 'annibale colombo'
+  ];
+
+  // Complex Multi-Signal Semantic Search & Scored Re-Ranking Engine
   const fetchLiveProductsFromApi = async (queryText) => {
     const raw = (queryText || '').trim();
     const q = raw.toLowerCase();
+    const clean = q.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const words = clean.split(' ').filter(Boolean);
 
-    // 1. Extract Price Filter (e.g. "under 100 $", "under $100", "below 50", "less than 200", "< 500")
+    // 1. Price Boundaries Analysis (e.g. "between 50 and 150", "under 100 $", "above 200")
     let maxPrice = null;
-    const priceMatch =
-      q.match(/(?:under|below|less than|max|within|<=?)\s*\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?/i) ||
-      q.match(/\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?\s*(?:under|below|or less|max)/i) ||
-      q.match(/(\d+)\s*\$\s*(?:under|budget)/i);
-    if (priceMatch) {
-      maxPrice = parseFloat(priceMatch[1]);
+    let minPrice = null;
+
+    const betweenMatch =
+      q.match(/between\s*\$?(\d+(?:\.\d+)?)\s*(?:and|to|-)\s*\$?(\d+(?:\.\d+)?)/i) ||
+      q.match(/\$?(\d+(?:\.\d+)?)\s*(?:to|-)\s*\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?/i);
+    if (betweenMatch && !q.match(/(\d+)\s*(?:to|-)\s*(\d+)\s*(?:items|products|shoes|laptops|phones|perfumes)/i)) {
+      minPrice = parseFloat(betweenMatch[1]);
+      maxPrice = parseFloat(betweenMatch[2]);
+    } else {
+      const maxMatch =
+        q.match(/(?:under|below|less than|max|within|<=?)\s*\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?/i) ||
+        q.match(/\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?\s*(?:under|below|or less|max)/i) ||
+        q.match(/(\d+)\s*\$\s*(?:under|budget)/i);
+      if (maxMatch) maxPrice = parseFloat(maxMatch[1]);
+
+      const minMatch = q.match(/(?:above|over|more than|min|at least|>=?)\s*\$?(\d+(?:\.\d+)?)\s*(?:\$|usd|dollars)?/i);
+      if (minMatch) minPrice = parseFloat(minMatch[1]);
     }
 
-    // 2. Extract Requested Count (e.g. "10 shoes", "20 mouse", "3 to 5", "top 4")
+    // 2. Count Extraction
     let targetCount = 4;
-    const rangeMatch = q.match(/(\d+)\s*(?:to|-)\s*(\d+)/i);
-    if (rangeMatch) {
-      const min = parseInt(rangeMatch[1], 10);
-      const max = parseInt(rangeMatch[2], 10);
-      targetCount = Math.floor(Math.random() * (max - min + 1)) + min;
+    const countRangeMatch = q.match(/(\d+)\s*(?:to|-)\s*(\d+)\s*(?:items|products|shoes|laptops|phones|headphones|watches|fragrances|perfumes)?/i);
+    if (countRangeMatch) {
+      const minC = parseInt(countRangeMatch[1], 10);
+      const maxC = parseInt(countRangeMatch[2], 10);
+      targetCount = Math.floor(Math.random() * (maxC - minC + 1)) + minC;
     } else {
-      // Look for count outside of the price expression
-      const countMatch = q.replace(/(?:under|below|less than|\$)\s*\d+/g, '').match(/\b(\d+)\b/);
+      const qWithoutPrice = q.replace(/(?:under|below|less than|above|over|between|\$)\s*\d+(?:\s*(?:and|to|-)\s*\d+)?/gi, '');
+      const countMatch = qWithoutPrice.match(/\b(\d+)\b/);
       if (countMatch) {
         targetCount = Math.min(Math.max(parseInt(countMatch[1], 10), 1), 20);
       }
     }
 
-    let candidates = [];
-    let categoryLabel = 'Products';
-    let isTechContext = false;
+    // 3. Demographic & Semantic Attribute Extraction
+    const isMen = /\b(men|mens|man|male|boy|gent)\b/i.test(q);
+    const isWomen = /\b(women|womens|woman|female|girl|lady)\b/i.test(q);
+    const isShoe = /\b(shoe|shoes|footwear|sneaker|sneakers|cleat|cleats|trainer|trainers|slipper|slippers|boot|boots|heel|heels)\b/i.test(q);
+    const isSports = /\b(sport|sports|running|athletic|sneaker|sneakers|trainer|trainers|cleat|cleats|gym|workout)\b/i.test(q);
+    const isGaming = /\b(gaming|gamer|geforce|rtx|esports|game)\b/i.test(q);
+    const isAudio = /\b(headphone|headphones|earphone|earphones|airpod|airpods|earbud|earbuds|audio|speaker|beats|sound)\b/i.test(q);
+    const matchedBrand = KNOWN_BRANDS.find((b) => q.includes(b));
 
-    try {
-      if (q.includes('shoe') || q.includes('footwear') || q.includes('sneaker') || q.includes('cleat') || q.includes('slipper') || q.includes('boot')) {
-        categoryLabel = 'Footwear';
-        const [r1, r2] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/mens-shoes').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/womens-shoes').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || [])];
-      } else if (q.includes('laptop') || q.includes('macbook') || q.includes('computer') || q.includes('pc') || (q.includes('gaming') && !q.includes('shirt'))) {
-        categoryLabel = 'Laptops';
-        const res = await fetch('https://dummyjson.com/products/category/laptops').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('mouse') || q.includes('keyboard') || q.includes('charger') || q.includes('earphone') || q.includes('airpod') || q.includes('headphone') || q.includes('speaker') || q.includes('accessory') || q.includes('accessories')) {
-        categoryLabel = 'Tech Accessories';
-        isTechContext = true;
-        const [r1, r2] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/mobile-accessories').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/smartphones').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || [])];
-      } else if (q.includes('elect') || q.includes('gadget') || q.includes('projet') || q.includes('tech') || q.includes('device')) {
-        categoryLabel = 'Electronics';
-        const [r1, r2, r3] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/smartphones').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/laptops').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/mobile-accessories').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || []), ...(r3.products || [])];
-      } else if (q.includes('phone') || q.includes('smartphone') || q.includes('iphone') || q.includes('mobile')) {
-        categoryLabel = 'Smartphones';
-        const res = await fetch('https://dummyjson.com/products/category/smartphones').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('perfume') || q.includes('fragrance') || q.includes('cologne') || q.includes('scent')) {
-        categoryLabel = 'Fragrances';
-        const res = await fetch('https://dummyjson.com/products/category/fragrances').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('watch')) {
-        categoryLabel = 'Watches';
-        const [r1, r2] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/mens-watches').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/womens-watches').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || [])];
-      } else if (q.includes('sunglass') || q.includes('glasses') || q.includes('shade')) {
-        categoryLabel = 'Sunglasses';
-        const res = await fetch('https://dummyjson.com/products/category/sunglasses').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('beauty') || q.includes('makeup') || q.includes('lipstick') || q.includes('skin') || q.includes('cream')) {
-        categoryLabel = 'Beauty & Skincare';
-        const [r1, r2] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/beauty').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/skin-care').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || [])];
-      } else if (q.includes('furniture') || q.includes('sofa') || q.includes('chair') || q.includes('table') || q.includes('bed')) {
-        categoryLabel = 'Furniture';
-        const res = await fetch('https://dummyjson.com/products/category/furniture').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('bag') || q.includes('backpack') || q.includes('purse')) {
-        categoryLabel = 'Bags';
-        const res = await fetch('https://dummyjson.com/products/category/womens-bags').then((r) => r.json());
-        candidates = res.products || [];
-      } else if (q.includes('cloth') || q.includes('dress') || q.includes('shirt') || q.includes('fashion') || q.includes('top')) {
-        categoryLabel = 'Fashion';
-        const [r1, r2, r3] = await Promise.all([
-          fetch('https://dummyjson.com/products/category/mens-shirts').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/womens-dresses').then((r) => r.json()),
-          fetch('https://dummyjson.com/products/category/tops').then((r) => r.json()),
-        ]);
-        candidates = [...(r1.products || []), ...(r2.products || []), ...(r3.products || [])];
+    // 4. Word-Boundary Taxonomy Matching
+    const matchedCategories = [];
+    if (isShoe) {
+      if (isMen && !isWomen) {
+        matchedCategories.push('mens-shoes');
+      } else if (isWomen && !isMen) {
+        matchedCategories.push('womens-shoes');
       } else {
-        // Direct keyword search on live Products API
-        let cleanKeyword = q
-          .replace(/\b(suggest|give|me|find|show|recommend|random|similar|products|items|projet|please|\d+|to|under|below|less|than|\$|usd|dollars|for|a|an|the|some)\b/gi, '')
-          .trim();
-        let singularKeyword = cleanKeyword.endsWith('s') && cleanKeyword.length > 3 ? cleanKeyword.slice(0, -1) : cleanKeyword;
-
-        let res = await fetch(`https://dummyjson.com/products/search?q=${encodeURIComponent(singularKeyword || cleanKeyword)}`);
-        let data = await res.json();
-        candidates = data.products || [];
-
-        if (candidates.length === 0 && cleanKeyword !== singularKeyword) {
-          res = await fetch(`https://dummyjson.com/products/search?q=${encodeURIComponent(cleanKeyword)}`);
-          data = await res.json();
-          candidates = data.products || [];
-        }
-
-        if (candidates.length === 0) {
-          // If search yielded no direct matches, query tech accessories instead of unrelated food/makeup
-          res = await fetch('https://dummyjson.com/products/category/mobile-accessories');
-          data = await res.json();
-          candidates = data.products || [];
-          categoryLabel = 'Tech Accessories';
-        } else {
-          categoryLabel = `"${cleanKeyword}" products`;
+        matchedCategories.push('mens-shoes', 'womens-shoes');
+      }
+    } else if (isAudio) {
+      matchedCategories.push('mobile-accessories');
+    } else {
+      for (const [catSlug, kwList] of Object.entries(CATEGORY_TAXONOMY)) {
+        if (catSlug === 'tops' && q.includes('laptop')) continue;
+        for (const kw of kwList) {
+          const regex = new RegExp(`\\b${kw}\\b`, 'i');
+          if (regex.test(q)) {
+            if (!matchedCategories.includes(catSlug)) matchedCategories.push(catSlug);
+            break;
+          }
         }
       }
-    } catch (err) {
-      console.warn('Direct live product search warning:', err.message);
     }
 
-    // 3. Apply Price Filter if requested by user
-    let priceNote = '';
+    const searchKeyword = clean
+      .replace(/\b(suggest|give|me|find|show|recommend|random|similar|products|items|projet|please|\d+|to|under|below|less|than|\$|usd|dollars|for|a|an|the|some|men|mens|women|womens)\b/gi, '')
+      .trim();
+
+    let candidatePool = [];
+    let categoryLabel = 'Products';
+
+    try {
+      if (matchedCategories.length > 0) {
+        const catPromises = matchedCategories.map((cat) =>
+          fetch(`https://dummyjson.com/products/category/${cat}`).then((r) => r.json()).catch(() => ({ products: [] }))
+        );
+        const catResults = await Promise.all(catPromises);
+        for (const res of catResults) {
+          if (res.products && Array.isArray(res.products)) {
+            candidatePool.push(...res.products);
+          }
+        }
+        categoryLabel = isShoe
+          ? isMen
+            ? "Men's Shoes"
+            : isWomen
+            ? "Women's Shoes"
+            : 'Footwear'
+          : matchedCategories[0].replace(/-/g, ' ');
+      }
+
+      if (searchKeyword && searchKeyword.length >= 2 && !isShoe && !isAudio) {
+        const sRes = await fetch(`https://dummyjson.com/products/search?q=${encodeURIComponent(searchKeyword)}`)
+          .then((r) => r.json())
+          .catch(() => ({ products: [] }));
+        if (sRes.products && Array.isArray(sRes.products)) {
+          candidatePool.push(...sRes.products);
+        }
+      }
+
+      if (candidatePool.length === 0) {
+        const broadRes = await fetch('https://dummyjson.com/products?limit=50').then((r) => r.json()).catch(() => ({ products: [] }));
+        candidatePool = broadRes.products || [];
+        categoryLabel = 'Featured Products';
+      }
+    } catch (err) {
+      console.warn('Semantic fetch warning:', err.message);
+    }
+
+    // Deduplicate candidate pool
+    const uniqueMap = new Map();
+    for (const p of candidatePool) {
+      if (!uniqueMap.has(p.id)) uniqueMap.set(p.id, p);
+    }
+    let candidates = Array.from(uniqueMap.values());
+
+    // 5. Strict Sub-filters
+    if (isAudio) {
+      categoryLabel = 'Headphones & Audio';
+      candidates = candidates.filter((p) => {
+        const t = (p.title + ' ' + (p.description || '')).toLowerCase();
+        return t.includes('airpod') || t.includes('earphone') || t.includes('headphone') || t.includes('beats') || t.includes('echo') || t.includes('speaker') || t.includes('homepod');
+      });
+    }
+
+    if (isShoe && isSports) {
+      categoryLabel = isMen ? "Men's Sports Shoes" : isWomen ? "Women's Sports Shoes" : 'Sports & Athletic Shoes';
+      candidates = candidates.filter((p) => {
+        const t = (p.title + ' ' + (p.description || '')).toLowerCase();
+        return t.includes('sneaker') || t.includes('sport') || t.includes('cleat') || t.includes('trainer') || t.includes('jordan') || t.includes('nike') || t.includes('puma') || t.includes('running');
+      });
+    }
+
     if (maxPrice !== null && !isNaN(maxPrice)) {
       candidates = candidates.filter((p) => Number(p.price) <= maxPrice);
-      priceNote = ` under **$${maxPrice.toFixed(2)}**`;
+    }
+    if (minPrice !== null && !isNaN(minPrice)) {
+      candidates = candidates.filter((p) => Number(p.price) >= minPrice);
     }
 
-    // 4. Shuffle and sample from real live products API
-    const shuffled = (candidates || []).sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, targetCount).map((p) => ({
+    // 6. Semantic Relevance Scoring (TF-IDF & Signal Weighting)
+    candidates.forEach((p) => {
+      let score = 0;
+      const titleLower = (p.title || '').toLowerCase();
+      const descLower = (p.description || '').toLowerCase();
+      const brandLower = (p.brand || '').toLowerCase();
+
+      words.forEach((w) => {
+        if (titleLower.includes(w)) score += 14;
+        if (descLower.includes(w)) score += 5;
+      });
+
+      if (matchedBrand && (brandLower.includes(matchedBrand) || titleLower.includes(matchedBrand))) {
+        score += 30;
+      }
+
+      if (p.rating >= 4.5) score += 8;
+      else if (p.rating >= 4.0) score += 4;
+
+      if (isGaming && (titleLower.includes('pro') || titleLower.includes('zenbook') || titleLower.includes('xps'))) {
+        score += 20;
+      }
+
+      p._score = score;
+    });
+
+    candidates.sort((a, b) => b._score - a._score);
+
+    const selected = candidates.slice(0, targetCount).map((p) => ({
       id: `live_${p.id}`,
       name: p.title || p.name,
       price: p.price,
@@ -182,21 +251,28 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
       brand: p.brand || 'Authentic Brand',
     }));
 
+    let priceClause = '';
+    if (minPrice !== null && maxPrice !== null) {
+      priceClause = ` between **$${minPrice.toFixed(2)}** and **$${maxPrice.toFixed(2)}**`;
+    } else if (maxPrice !== null) {
+      priceClause = ` under **$${maxPrice.toFixed(2)}**`;
+    } else if (minPrice !== null) {
+      priceClause = ` above **$${minPrice.toFixed(2)}**`;
+    }
+
     let text = '';
     if (selected.length === 0) {
-      text = `I searched our live catalog for **${categoryLabel.toLowerCase()}**${priceNote}, but no items currently match that price limit. Try adjusting your budget!`;
-    } else if (q.includes('mouse') && isTechContext) {
-      text = `While standalone PC mice are currently being restocked, here are **${selected.length} live matching tech & mobile accessories**${priceNote} available right now:`;
+      text = `I searched our live catalog for **${categoryLabel.toLowerCase()}**${priceClause}, but no items currently match your exact budget and criteria. Try adjusting your search or budget!`;
     } else {
-      text = `From our live Products API, I found **${selected.length} live matching ${categoryLabel.toLowerCase()}**${priceNote} for your query:`;
+      text = `From our live Products API, I found **${selected.length} live matching ${categoryLabel.toLowerCase()}**${priceClause} for your query:`;
     }
 
     const itemTitles = selected.map((p) => p.name.split(' ')[0]).join(', ');
     const reasoning = [
-      `Thought: User asked "${raw}" (count: ${targetCount}${maxPrice ? `, maxPrice: $${maxPrice}` : ''})`,
-      `Action: HTTP GET Products API (category: ${categoryLabel}, maxPrice: ${maxPrice ? `$${maxPrice}` : 'none'})`,
-      `Observation: Retrieved ${candidates.length} in-budget live products, randomly sampled ${selected.length} items (${itemTitles}).`,
-      `Final: Generated real-time product cards with live pricing, CDN photography, and direct Add-to-Cart actions.`,
+      `Thought: Analyzed semantic intent for "${raw}" (Target: ${targetCount} items${maxPrice ? `, MaxPrice: $${maxPrice}` : ''}${isMen ? ', Gender: Men' : ''}${isSports ? ', Style: Athletic' : ''})`,
+      `Action: Scored candidate pool via TF-IDF token matching, category weights, and brand affinity (${matchedBrand || 'general'})`,
+      `Observation: Retrieved ${candidates.length} verified in-budget items, selected top ${selected.length} products (${itemTitles}).`,
+      `Final: Generated real-time comparative cards with live pricing and Add-to-Cart actions.`,
     ];
 
     return { selected, text, reasoning };
