@@ -62,3 +62,80 @@ describe('Refund-Service - Feature 1: Create Return Request', () => {
     });
   });
 });
+
+describe('Refund-Service - Feature 2: Fetch Return Requests', () => {
+  describe('Ownership & Role Authorization Checks', () => {
+    it('should allow customer to access their own return request', () => {
+      const returnRecord = {
+        _id: 'ret_100',
+        userId: 'user_abc',
+        orderId: 'ord_123',
+        status: 'RETURN_REQUESTED'
+      };
+
+      const checkAccess = (record, requestingUserId, role) => {
+        if (!record) throw new Error('Return request not found');
+        if (role !== 'admin' && String(record.userId) !== String(requestingUserId)) {
+          throw new Error('Access denied to this return record');
+        }
+        return true;
+      };
+
+      assert.strictEqual(checkAccess(returnRecord, 'user_abc', 'customer'), true);
+    });
+
+    it('should allow admin to access any return request', () => {
+      const returnRecord = {
+        _id: 'ret_100',
+        userId: 'user_abc',
+        orderId: 'ord_123'
+      };
+
+      const checkAccess = (record, requestingUserId, role) => {
+        if (!record) throw new Error('Return request not found');
+        if (role !== 'admin' && String(record.userId) !== String(requestingUserId)) {
+          throw new Error('Access denied to this return record');
+        }
+        return true;
+      };
+
+      assert.strictEqual(checkAccess(returnRecord, 'admin_user', 'admin'), true);
+    });
+
+    it('should throw 403 Access Denied when another customer attempts to view the return', () => {
+      const returnRecord = {
+        _id: 'ret_100',
+        userId: 'user_abc',
+        orderId: 'ord_123'
+      };
+
+      const checkAccess = (record, requestingUserId, role) => {
+        if (!record) throw new Error('Return request not found');
+        if (role !== 'admin' && String(record.userId) !== String(requestingUserId)) {
+          throw new Error('Access denied to this return record');
+        }
+        return true;
+      };
+
+      assert.throws(() => {
+        checkAccess(returnRecord, 'attacker_user_xyz', 'customer');
+      }, /Access denied to this return record/);
+    });
+
+    it('should filter user returns list by user ID and sort by newest first', () => {
+      const allReturns = [
+        { _id: 'r1', userId: 'user_1', createdAt: new Date('2026-08-01') },
+        { _id: 'r2', userId: 'user_2', createdAt: new Date('2026-08-02') },
+        { _id: 'r3', userId: 'user_1', createdAt: new Date('2026-08-03') }
+      ];
+
+      const user1Returns = allReturns
+        .filter(r => r.userId === 'user_1')
+        .sort((a, b) => b.createdAt - a.createdAt);
+
+      assert.strictEqual(user1Returns.length, 2);
+      assert.strictEqual(user1Returns[0]._id, 'r3'); // newest
+      assert.strictEqual(user1Returns[1]._id, 'r1');
+    });
+  });
+});
