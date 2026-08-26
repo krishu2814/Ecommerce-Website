@@ -114,7 +114,7 @@ const CatalogPage = ({ onSelectProduct, searchQuery, onOpenAI }) => {
   const [sortBy, setSortBy] = useState('recommended');
   const [loading, setLoading] = useState(false);
 
-  // Attempt backend products lookup
+  // Attempt backend products lookup + fallback to rich public DummyJSON catalog
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -122,9 +122,49 @@ const CatalogPage = ({ onSelectProduct, searchQuery, onOpenAI }) => {
         const res = await api.get('/products');
         if (res.data && res.data.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
           setProducts(res.data.data);
+          return;
         }
       } catch (err) {
-        console.log('Using preloaded premium catalog dataset:', err.message);
+        console.log('Backend products offline, querying public product stream...');
+      }
+
+      // Fetch 40+ rich products dynamically from DummyJSON (Free Public Ecommerce API)
+      try {
+        const response = await fetch('https://dummyjson.com/products?limit=40');
+        const data = await response.json();
+        if (data && Array.isArray(data.products) && data.products.length > 0) {
+          const mapped = data.products.map((p) => {
+            let cat = 'Accessories';
+            const rawCat = (p.category || '').toLowerCase();
+            if (rawCat.includes('smart') || rawCat.includes('laptop') || rawCat.includes('tablet') || rawCat.includes('electronic')) {
+              cat = 'Electronics';
+            } else if (rawCat.includes('shoe')) {
+              cat = 'Footwear';
+            } else if (rawCat.includes('dress') || rawCat.includes('shirt') || rawCat.includes('top') || rawCat.includes('fashion')) {
+              cat = 'Fashion';
+            } else if (rawCat.includes('home') || rawCat.includes('furniture') || rawCat.includes('kitchen') || rawCat.includes('grocer')) {
+              cat = 'Home';
+            }
+
+            return {
+              _id: `dj_${p.id}`,
+              name: p.title,
+              description: p.description,
+              price: p.price,
+              originalPrice: Number((p.price * (1 + (p.discountPercentage || 15) / 100)).toFixed(2)),
+              category: cat,
+              stock: p.stock || 20,
+              rating: Number(p.rating?.toFixed(1) || 4.5),
+              reviewsCount: (p.reviews && p.reviews.length * 12) || Math.floor(p.price * 1.5) + 8,
+              image: p.thumbnail || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600',
+            };
+          });
+
+          // Combine with DEFAULT_PRODUCTS for maximum variety
+          setProducts([...DEFAULT_PRODUCTS, ...mapped]);
+        }
+      } catch (fErr) {
+        console.log('Using preloaded fallback catalog dataset:', fErr.message);
       } finally {
         setLoading(false);
       }
