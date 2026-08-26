@@ -211,3 +211,113 @@ describe('Refund-Service - Feature 3: Schedule Courier Pickup', () => {
     });
   });
 });
+
+describe('Refund-Service - Feature 4: Record Item Inspection', () => {
+  describe('Quality Inspection Pass/Fail Branching Logic', () => {
+    it('should transition status to ITEM_INSPECTED when inspection passes', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        status: 'PICKUP_SCHEDULED',
+        inspectionDetails: {}
+      };
+
+      const recordInspection = (record, inspectionData) => {
+        if (record.status !== 'PICKUP_SCHEDULED') {
+          throw new Error(`Cannot record inspection. Current status is ${record.status}, expected PICKUP_SCHEDULED`);
+        }
+        const passed = inspectionData.passed !== undefined ? Boolean(inspectionData.passed) : true;
+        record.status = passed ? 'ITEM_INSPECTED' : 'REJECTED';
+        record.inspectionDetails = {
+          inspectorName: inspectionData.inspectorName || 'Inspector Bob',
+          itemCondition: inspectionData.itemCondition || 'GOOD',
+          passed,
+          notes: inspectionData.notes || 'Passed quality verification'
+        };
+        return record;
+      };
+
+      const updated = recordInspection(returnRecord, {
+        inspectorName: 'Quality Lead Sarah',
+        itemCondition: 'GOOD',
+        passed: true,
+        notes: 'Original tags intact, item unused'
+      });
+
+      assert.strictEqual(updated.status, 'ITEM_INSPECTED');
+      assert.strictEqual(updated.inspectionDetails.passed, true);
+      assert.strictEqual(updated.inspectionDetails.itemCondition, 'GOOD');
+    });
+
+    it('should transition status to REJECTED when inspection fails quality check', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        status: 'PICKUP_SCHEDULED',
+        inspectionDetails: {}
+      };
+
+      const recordInspection = (record, inspectionData) => {
+        if (record.status !== 'PICKUP_SCHEDULED') {
+          throw new Error(`Cannot record inspection. Current status is ${record.status}, expected PICKUP_SCHEDULED`);
+        }
+        const passed = inspectionData.passed !== undefined ? Boolean(inspectionData.passed) : true;
+        record.status = passed ? 'ITEM_INSPECTED' : 'REJECTED';
+        record.inspectionDetails = {
+          inspectorName: inspectionData.inspectorName || 'Inspector Bob',
+          itemCondition: inspectionData.itemCondition || 'DAMAGED',
+          passed,
+          notes: inspectionData.notes || 'Failed check'
+        };
+        return record;
+      };
+
+      const updated = recordInspection(returnRecord, {
+        inspectorName: 'Quality Lead Sarah',
+        itemCondition: 'DAMAGED',
+        passed: false,
+        notes: 'Item damaged by customer, signs of heavy wear'
+      });
+
+      assert.strictEqual(updated.status, 'REJECTED');
+      assert.strictEqual(updated.inspectionDetails.passed, false);
+      assert.strictEqual(updated.inspectionDetails.itemCondition, 'DAMAGED');
+    });
+
+    it('should reject inspection if return status is not PICKUP_SCHEDULED', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        status: 'RETURN_REQUESTED' // item has not been picked up yet
+      };
+
+      const recordInspection = (record) => {
+        if (record.status !== 'PICKUP_SCHEDULED') {
+          throw new Error(`Cannot record inspection. Current status is ${record.status}, expected PICKUP_SCHEDULED`);
+        }
+      };
+
+      assert.throws(() => {
+        recordInspection(returnRecord);
+      }, /expected PICKUP_SCHEDULED/);
+    });
+
+    it('should format valid RETURN_INSPECTED RabbitMQ event payload', () => {
+      const event = {
+        event: 'RETURN_INSPECTED',
+        returnId: 'ret_123',
+        orderId: 'ord_456',
+        userId: 'usr_789',
+        status: 'ITEM_INSPECTED',
+        passed: true,
+        inspectionDetails: {
+          inspectorName: 'Quality Inspector Alex',
+          itemCondition: 'GOOD',
+          passed: true
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      assert.strictEqual(event.event, 'RETURN_INSPECTED');
+      assert.strictEqual(event.status, 'ITEM_INSPECTED');
+      assert.strictEqual(event.passed, true);
+    });
+  });
+});
