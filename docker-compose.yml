@@ -16,7 +16,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
 
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,7 +40,7 @@ services:
       - redis_data:/data
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -375,9 +375,9 @@ volumes:
   rabbitmq_data:
   redis_data:
 
-# ==========================================
-# NETWORK
-# ==========================================
+    # ==========================================
+    # NETWORK
+    # ==========================================
 
 networks:
   ecommerce-network:
