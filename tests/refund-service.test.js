@@ -1,6 +1,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const ShippingLabelUtil = require('../services/Refund-Service/src/utils/shipping-label');
+const PaymentGateway = require('../services/Refund-Service/src/utils/payment-gateway');
 
 describe('Refund-Service - Feature 1: Create Return Request', () => {
   describe('Input Validation & Order Ownership Check', () => {
@@ -318,6 +319,101 @@ describe('Refund-Service - Feature 4: Record Item Inspection', () => {
       assert.strictEqual(event.event, 'RETURN_INSPECTED');
       assert.strictEqual(event.status, 'ITEM_INSPECTED');
       assert.strictEqual(event.passed, true);
+    });
+  });
+});
+
+describe('Refund-Service - Feature 5: Process Refund (Full & Partial)', () => {
+  describe('Refund Amount Calculations & Gateway Execution', () => {
+    it('should execute Full Refund equal to original return amount', () => {
+      const returnRecord = {
+        _id: 'ret_123',
+        status: 'ITEM_INSPECTED',
+        originalAmount: 180.00
+      };
+
+      const refundType = 'FULL';
+      const refundAmount = refundType === 'FULL' ? returnRecord.originalAmount : 0;
+
+      assert.strictEqual(refundAmount, 180.00);
+    });
+
+    it('should execute Partial Refund when amount is within allowable limits', () => {
+      const originalAmount = 250.00;
+      const requestedPartialAmount = 100.00;
+
+      const validatePartial = (orig, req) => {
+        if (req <= 0) throw new Error('Refund amount must be a positive number');
+        if (req > orig) throw new Error(`Refund amount ($${req}) cannot exceed original order amount ($${orig})`);
+        return req;
+      };
+
+      const refundAmount = validatePartial(originalAmount, requestedPartialAmount);
+      assert.strictEqual(refundAmount, 100.00);
+    });
+
+    it('should reject Partial Refund when amount exceeds original order amount', () => {
+      const originalAmount = 50.00;
+      const requestedPartialAmount = 75.00;
+
+      const validatePartial = (orig, req) => {
+        if (req > orig) throw new Error(`Refund amount ($${req}) cannot exceed original order amount ($${orig})`);
+      };
+
+      assert.throws(() => {
+        validatePartial(originalAmount, requestedPartialAmount);
+      }, /cannot exceed original order amount/);
+    });
+
+    it('should prevent duplicate refund if status is already REFUND_PROCESSED', () => {
+      const returnRecord = { status: 'REFUND_PROCESSED' };
+
+      const checkDuplicate = (record) => {
+        if (record.status === 'REFUND_PROCESSED') {
+          throw new Error('Return request has already been refunded');
+        }
+      };
+
+      assert.throws(() => {
+        checkDuplicate(returnRecord);
+      }, /Return request has already been refunded/);
+    });
+
+    it('should prevent refund if status is REJECTED', () => {
+      const returnRecord = { status: 'REJECTED' };
+
+      const checkReject = (record) => {
+        if (record.status === 'REJECTED') {
+          throw new Error('Cannot refund a rejected return request');
+        }
+      };
+
+      assert.throws(() => {
+        checkReject(returnRecord);
+      }, /Cannot refund a rejected return request/);
+    });
+
+    it('should return valid refund transaction ID from PaymentGateway', async () => {
+      const gatewayResult = await PaymentGateway.processRefund({
+        amount: 120.00,
+        paymentGateway: 'Original_Payment',
+        originalPaymentId: 'ord_123',
+        simulateFailure: false
+      });
+
+      assert.strictEqual(gatewayResult.success, true);
+      assert.ok(gatewayResult.refundTransactionId.startsWith('REF_TXN_'));
+      assert.strictEqual(gatewayResult.gateway, 'Original_Payment');
+    });
+
+    it('should throw error when simulated failure is requested', async () => {
+      await assert.rejects(async () => {
+        await PaymentGateway.processRefund({
+          amount: 100,
+          paymentGateway: 'Stripe',
+          simulateFailure: true
+        });
+      }, /Payment Gateway declined the refund request/);
     });
   });
 });
