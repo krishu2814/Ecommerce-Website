@@ -5,7 +5,9 @@
   "scripts": {
     "test": "node tests/run-all-tests.js",
     "test:watch": "node --test --watch tests/*.test.js",
-    "setup:env": "bash setup-env.sh"
+    "setup:env": "bash setup-env.sh",
+    "client": "cd client && npm run dev",
+    "client:build": "cd client && npm run build"
   },
   "keywords": [
     "microservices",
