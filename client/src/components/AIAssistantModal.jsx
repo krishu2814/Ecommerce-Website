@@ -296,10 +296,19 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
 
     // Primary Flow: Send 100% of user queries directly to Backend AI Model (LLM via Groq / Shopping Agent)
     try {
-      const res = await api.post('/ai/v1/agent/chat', {
-        message: userText,
-        sessionId,
-      });
+      // Try /ai/agent/chat first (which ApiGateway forwards to /api/v1/agent/chat)
+      let res;
+      try {
+        res = await api.post('/ai/agent/chat', {
+          message: userText,
+          sessionId,
+        });
+      } catch (e1) {
+        res = await api.post('/ai/v1/agent/chat', {
+          message: userText,
+          sessionId,
+        });
+      }
 
       if (res.data && res.data.success && res.data.data) {
         const agentData = res.data.data;
@@ -341,6 +350,33 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
     }
 
     // Secondary Fallback: If backend service is unavailable, handle locally
+    const lowerText = userText.toLowerCase().trim();
+    const isGreetingOrChat = ['hi', 'hii', 'hi ai', 'hello', 'hey', 'goodmorning', 'good morning', 'good evening', 'how are you', 'thanks', 'bye', 'what can you do'].some(
+      (g) => lowerText === g || lowerText.startsWith('hi ') || lowerText.startsWith('hello ') || lowerText.startsWith('hey ')
+    );
+
+    if (isGreetingOrChat) {
+      let chatReply = "Hello! 👋 I am your AI Shopping Assistant. How can I help you today?";
+      if (lowerText.includes('morning')) chatReply = "Good morning! ☀️ How can I help you with your shopping today?";
+      else if (lowerText.includes('evening')) chatReply = "Good evening! 🌙 How can I help you with your shopping today?";
+      else if (lowerText.includes('how are you')) chatReply = "I'm doing great, thank you! How can I help you today?";
+      else if (lowerText.includes('thanks')) chatReply = "You're very welcome! Let me know if you need anything else.";
+      else if (lowerText.includes('bye')) chatReply = "Goodbye! Have a wonderful day!";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: chatReply,
+          thoughtProcess: [`Processed intent for "${userText}"`],
+          recommendedProducts: [],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { selected, text, reasoning } = await fetchLiveProductsFromApi(userText);
       setMessages((prev) => [
