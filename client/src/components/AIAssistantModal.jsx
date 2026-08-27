@@ -350,25 +350,35 @@ const AIAssistantModal = ({ isOpen, onClose, onSelectProduct }) => {
     }
 
     // Secondary Fallback: If backend service is unavailable, handle locally
-    const lowerText = userText.toLowerCase().trim();
-    const isGreetingOrChat = ['hi', 'hii', 'hi ai', 'hello', 'hey', 'goodmorning', 'good morning', 'good evening', 'how are you', 'thanks', 'bye', 'what can you do'].some(
-      (g) => lowerText === g || lowerText.startsWith('hi ') || lowerText.startsWith('hello ') || lowerText.startsWith('hey ')
-    );
+    const lowerText = userText.toLowerCase().replace(/[^\w\s]/gi, '').trim();
+    const isGreetingOrChat = /^(hi|hii|hiii|hi\s*ai|hey|heyy|hello|hello\s*ai|hola|namaste|good\s*morning|goodmorning|good\s*evening|goodevening|good\s*afternoon|goodafternoon|morning|evening|afternoon|how\s*are\s*you|how\s*r\s*u|how\s*are\s*u|who\s*are\s*you|who\s*r\s*u|what\s*can\s*you\s*do|what\s*do\s*you\s*do|thanks|thank\s*you|thx|cool|great|awesome|okay|ok|bye|goodbye|see\s*you|take\s*care|tc)\b/i.test(lowerText);
 
     if (isGreetingOrChat) {
       let chatReply = "Hello! 👋 I am your AI Shopping Assistant. How can I help you today?";
-      if (lowerText.includes('morning')) chatReply = "Good morning! ☀️ How can I help you with your shopping today?";
-      else if (lowerText.includes('evening')) chatReply = "Good evening! 🌙 How can I help you with your shopping today?";
-      else if (lowerText.includes('how are you')) chatReply = "I'm doing great, thank you! How can I help you today?";
-      else if (lowerText.includes('thanks')) chatReply = "You're very welcome! Let me know if you need anything else.";
-      else if (lowerText.includes('bye')) chatReply = "Goodbye! Have a wonderful day!";
+      if (lowerText.includes('morning')) {
+        chatReply = "Good morning! ☀️ How can I help you with your shopping today?";
+      } else if (lowerText.includes('evening')) {
+        chatReply = "Good evening! 🌙 How can I help you with your shopping today?";
+      } else if (lowerText.includes('afternoon')) {
+        chatReply = "Good afternoon! ☀️ How can I help you with your shopping today?";
+      } else if (lowerText.includes('how are you') || lowerText.includes('how r u') || lowerText.includes('how are u')) {
+        chatReply = "I'm doing great, thank you for asking! How can I help you today?";
+      } else if (lowerText.includes('who are you') || lowerText.includes('what can you do') || lowerText.includes('what do you do')) {
+        chatReply = "I am your personal AI Shopping Assistant! I can help you search our catalog, check live warehouse stock, view your cart, or track orders.";
+      } else if (lowerText.includes('thank') || lowerText.includes('thx')) {
+        chatReply = "You're very welcome! Let me know if you need anything else.";
+      } else if (lowerText.includes('bye') || lowerText.includes('see you') || lowerText.includes('take care') || lowerText === 'tc') {
+        chatReply = "Goodbye! 👋 Have a wonderful day!";
+      } else if (lowerText === 'ok' || lowerText === 'okay' || lowerText === 'cool' || lowerText === 'great' || lowerText === 'awesome') {
+        chatReply = "Awesome! Let me know whenever you need help finding products or checking stock.";
+      }
 
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
           content: chatReply,
-          thoughtProcess: [`Processed intent for "${userText}"`],
+          thoughtProcess: [`Processed conversational intent for "${userText}"`],
           recommendedProducts: [],
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
