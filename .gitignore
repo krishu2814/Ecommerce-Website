@@ -19,3 +19,6 @@ yarn-error.log*
 # Artifacts and temporary files
 .system_generated/
 scratch/
+
+# interview
+interview.md
