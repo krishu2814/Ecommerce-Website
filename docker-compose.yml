@@ -321,6 +321,38 @@ services:
       - ecommerce-network
 
   # ==========================================
+  # REFUND & RMA SERVICE (11TH MICROSERVICE)
+  # ==========================================
+
+  refund-service:
+    build:
+      context: ./services/Refund-Service
+      dockerfile: Dockerfile
+
+    container_name: ecommerce-refund-service
+    restart: unless-stopped
+
+    ports:
+      - "5019:5019"
+
+    env_file:
+      - ./services/Refund-Service/.env
+
+    environment:
+      PORT: 5019
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      ORDER_SERVICE_URL: http://order-service:5012
+      PAYMENT_SERVICE_URL: http://payment-service:5013
+      INVENTORY_SERVICE_URL: http://inventory-service:5016
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - ecommerce-network
+
+  # ==========================================
   # API GATEWAY
   # ==========================================
 
@@ -350,6 +382,7 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:5015
       REVIEW_SERVICE_URL: http://review-service:5017
       AI_SERVICE_URL: http://ai-service:5018
+      REFUND_SERVICE_URL: http://refund-service:5019
       REDIS_URL: redis://redis:6379
 
     depends_on:
@@ -362,6 +395,7 @@ services:
       - notification-service
       - review-service
       - ai-service
+      - refund-service
       - redis
 
     networks:

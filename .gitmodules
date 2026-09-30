@@ -1,18 +1,18 @@
 [submodule "services/Product-Service"]
 	path = services/Product-Service
-	url = https://github.com/krishu2814/Product-Service
+	url = https://github.com/krishu2814/Product-Service.git
 [submodule "services/Cart-Service"]
 	path = services/Cart-Service
-	url = https://github.com/krishu2814/Cart-Service
+	url = https://github.com/krishu2814/Cart-Service.git
 [submodule "services/Auth-Service"]
 	path = services/Auth-Service
-	url = https://github.com/krishu2814/Auth-Service
+	url = https://github.com/krishu2814/Auth-Service.git
 [submodule "services/Order-Service"]
 	path = services/Order-Service
-	url = https://github.com/krishu2814/Order-Service
+	url = https://github.com/krishu2814/Order-Service.git
 [submodule "services/Payment-Service"]
 	path = services/Payment-Service
-	url = https://github.com/krishu2814/Payment_Service_EcommerceWebsite
+	url = https://github.com/krishu2814/Payment_Service_EcommerceWebsite.git
 [submodule "services/ApiGateway-Service"]
 	path = services/ApiGateway-Service
 	url = https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git
@@ -28,3 +28,6 @@
 [submodule "services/AI-Service"]
 	path = services/AI-Service
 	url = https://github.com/krishu2814/AI-Service.git
+[submodule "services/Refund-Service"]
+	path = services/Refund-Service
+	url = https://github.com/krishu2814/Refund-Service.git

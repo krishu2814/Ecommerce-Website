@@ -106,18 +106,18 @@ All services and the frontend client are structured as modular components:
 
 | Component / Service | Repository / Folder | Port | Protocol | Primary Database | Key Capabilities | Status |
 | :--- | :--- | :---: | :---: | :--- | :--- | :---: |
-| **React Storefront Client** | [`client/`](./client) | `3000` | HTTP / SPA | Browser Cache | React 19, Vite, Vanilla CSS Design System, AI ReAct Widget, Cart Drawer | ✅ Active |
+| **React Storefront Client** | [`client/`](./client) | `5173` | HTTP / SPA | Browser Cache | React 19, Vite, Vanilla CSS Design System, AI ReAct Widget, Cart Drawer | ✅ Active |
 | **API Gateway** | [ApiGateway-Service](https://github.com/krishu2814/API_GATEWAY-SERVICE-ECOMMERCE-WEBSITE.git) | `5014` | HTTP | — | Reverse Proxy, Rate Limiting (Redis), Auth Stripping, Tracing | ✅ Active |
-| **Auth Service** | [Auth-Service](https://github.com/krishu2814/Auth-Service) | `5011` | HTTP | MongoDB (`ecommerce_auth`) | Bcrypt, JWT, User Roles (Customer/Vendor/Admin) | ✅ Active |
-| **Product Service** | [Product-Service](https://github.com/krishu2814/Product-Service) | `5009` | HTTP | MongoDB (`ecommerce_product`) | Text Search, Redis Cache-Aside, Filtering | ✅ Active |
-| **Cart Service** | [Cart-Service](https://github.com/krishu2814/Cart-Service) | `5010` | HTTP + AMQP | MongoDB (`ecommerce_cart`) | Line items, Price sync, Auto-clear on Order | ✅ Active |
-| **Order Service** | [Order-Service](https://github.com/krishu2814/Order-Service) | `5012` | HTTP + AMQP | MongoDB (`ecommerce_order`) | Saga Coordination, Lifecycle State, Coupons | ✅ Active |
+| **Auth Service** | [Auth-Service](https://github.com/krishu2814/Auth-Service.git) | `5011` | HTTP | MongoDB (`ecommerce_auth`) | Bcrypt, JWT, User Roles (Customer/Vendor/Admin) | ✅ Active |
+| **Product Service** | [Product-Service](https://github.com/krishu2814/Product-Service.git) | `5009` | HTTP | MongoDB (`ecommerce_product`) | Text Search, Redis Cache-Aside, Filtering | ✅ Active |
+| **Cart Service** | [Cart-Service](https://github.com/krishu2814/Cart-Service.git) | `5010` | HTTP + AMQP | MongoDB (`ecommerce_cart`) | Line items, Price sync, Auto-clear on Order | ✅ Active |
+| **Order Service** | [Order-Service](https://github.com/krishu2814/Order-Service.git) | `5012` | HTTP + AMQP | MongoDB (`ecommerce_order`) | Saga Coordination, Lifecycle State, Coupons | ✅ Active |
 | **Inventory Service** | [Inventory-Service](https://github.com/krishu2814/Inventory-Service.git) | `5016` | HTTP + AMQP | MongoDB (`ecommerce_inventory`) | 2-Phase Reservation, Auto TTL Expiry, Stock Locks | ✅ Active |
-| **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Payment Processing, Saga Compensation | ✅ Active |
+| **Payment Service** | [Payment-Service](https://github.com/krishu2814/Payment_Service_EcommerceWebsite.git) | `5013` | HTTP + AMQP | MongoDB (`ecommerce_payment`) | Payment Processing, Saga Compensation | ✅ Active |
 | **Notification Service** | [Notification-Service](https://github.com/krishu2814/Notification-Service.git) | `5015` | HTTP + AMQP | MongoDB (`ecommerce_notification`) | Nodemailer, HTML Templates, DLQ Protection | ✅ Active |
 | **Review Service** | [Review-Service](https://github.com/krishu2814/Review-Service.git) | `5017` | HTTP + AMQP | MongoDB (`ecommerce_review`) | Verified Purchases, Star Breakdown, Helpful Votes | ✅ Active |
 | **AI Service** | [AI-Service](https://github.com/krishu2814/AI-Service.git) | `5018` | HTTP | MongoDB (`ecommerce_ai`) | Autonomous ReAct Agent, Tool Calling, Sessions | ✅ Active |
-| **Refund & RMA Service** | [Refund-Service](./services/Refund-Service) | `5019` | HTTP + AMQP | MongoDB (`ecommerce_refund`) | RMA Tracking, Shipping Labels, Quality Inspection, Gateway Refunds | ✅ Active |
+| **Refund & RMA Service** | [Refund-Service](https://github.com/krishu2814/Refund-Service.git) | `5019` | HTTP + AMQP | MongoDB (`ecommerce_refund`) | RMA Tracking, Shipping Labels, Quality Inspection, Gateway Refunds | ✅ Active |
 
 ---
 
@@ -932,7 +932,7 @@ The **Notification Service** (`services/Notification-Service`, Port `5015`) oper
 
 ## 🔄 Return & Refund Service (RMA - 11th Microservice)
 
-The **Refund Service** (`services/Refund-Service`, Port `5019`) implements complete automated Return Merchandise Authorization (RMA) workflows, quality inspection branching, shipping label generation, and payment gateway refund processing.
+The **Refund Service** ([Refund-Service](https://github.com/krishu2814/Refund-Service.git), Port `5019`) implements complete automated Return Merchandise Authorization (RMA) workflows, quality inspection branching, shipping label generation, and payment gateway refund processing.
 
 ```text
                                   ┌───────────────────────────┐

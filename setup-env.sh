@@ -23,6 +23,7 @@ SERVICES=(
   "Notification-Service"
   "Review-Service"
   "AI-Service"
+  "Refund-Service"
 )
 
 COUNT=0

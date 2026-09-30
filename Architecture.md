@@ -50,6 +50,7 @@ flowchart TB
     Gateway --> NotifSvc
     Gateway --> RevSvc
     Gateway --> AISvc
+    Gateway --> RefSvc
 
     subgraph Messaging["Event-Driven Message Broker (RabbitMQ)"]
         Exchange["Exchange: ecommerce_events (Topic / Direct)"]
