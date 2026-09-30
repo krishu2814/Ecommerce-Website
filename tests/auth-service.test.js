@@ -102,5 +102,25 @@ describe('Auth-Service Test Suite', () => {
       const hasAuth = Boolean(req.headers['authorization']);
       assert.strictEqual(hasAuth, false);
     });
+
+    it('should allow login without explicit role and default to existing user role', async () => {
+      const existingUser = {
+        _id: 'u99',
+        email: 'shopper@test.com',
+        role: 'customer',
+        password: await bcrypt.hash('Secret123!', 10)
+      };
+
+      const loginPayload = { email: 'shopper@test.com', password: 'Secret123!' };
+      const passwordMatches = await bcrypt.compare(loginPayload.password, existingUser.password);
+      assert.strictEqual(passwordMatches, true);
+
+      const resolvedRole = loginPayload.role || existingUser.role;
+      assert.strictEqual(resolvedRole, 'customer');
+
+      const token = jwt.sign({ id: existingUser._id, email: existingUser.email, role: resolvedRole }, SECRET_TOKEN);
+      const decoded = jwt.verify(token, SECRET_TOKEN);
+      assert.strictEqual(decoded.role, 'customer');
+    });
   });
 });

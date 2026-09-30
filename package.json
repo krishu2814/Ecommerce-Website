@@ -4,7 +4,7 @@
   "description": "Production-Grade Distributed Ecommerce Microservices Platform",
   "scripts": {
     "test": "node tests/run-all-tests.js",
-    "test:watch": "node --test --watch tests/*.test.js",
+    "test:watch": "node tests/run-all-tests.js --watch",
     "setup:env": "bash setup-env.sh",
     "client": "cd client && npm run dev",
     "client:build": "cd client && npm run build"

@@ -23,7 +23,8 @@ const serviceNodeModules = fs.readdirSync(servicesDir)
 const existingNodePath = process.env.NODE_PATH ? process.env.NODE_PATH.split(path.delimiter) : [];
 const combinedNodePath = [...serviceNodeModules, ...existingNodePath].join(path.delimiter);
 
-const runner = spawn('node', ['--test', ...testFiles], {
+const extraArgs = process.argv.slice(2);
+const runner = spawn('node', ['--test', ...extraArgs, ...testFiles], {
   stdio: 'inherit',
   cwd: rootDir,
   env: {
